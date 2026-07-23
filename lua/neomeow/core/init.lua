@@ -24,6 +24,7 @@ registry.register(require('neomeow.core.structures').commands)
 registry.register(require('neomeow.core.grab').commands)
 registry.register(require('neomeow.core.edits').commands)
 registry.register(require('neomeow.core.avy').commands)
+registry.register(require('neomeow.core.acewindow').commands)
 require('neomeow.core.engine')
 
 return {

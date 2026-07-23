@@ -53,4 +53,10 @@ function M.ordered(candidates)
   return out
 end
 
+M.commands = {
+  ['ace-resize'] = function(ctx)
+    ctx.ui:hint('ace-resize is not wired yet')
+  end,
+}
+
 return M

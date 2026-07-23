@@ -164,6 +164,16 @@ describe('RcSpec', function()
     h.eqList(c.errors, {})
   end)
 
+  it('given a cmap or cnoremap line then the rc loads it without error', function()
+    local c = Rc.parse({
+      'cmap <C-h> backward-char',
+      'cnoremap <C-x> <action>(SomeChord)',
+      'nmap Z ,b',
+    })
+    h.eqList(c.errors, {})
+    h.eq(c.normal['Z'].keys, ',b')
+  end)
+
   it('given set lines then which-key options apply and vim options are ignored', function()
     local c = Rc.parse({
       'set nowhich-key',

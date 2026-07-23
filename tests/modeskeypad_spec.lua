@@ -4,6 +4,7 @@
 
 local h = require('tests.helpers')
 local Engine = require('neomeow.core.engine')
+local Rc = require('neomeow.core.rc')
 local MeowMode = h.MeowMode
 
 describe('ModesKeypadSpec', function()
@@ -161,5 +162,30 @@ describe('ModesKeypadSpec', function()
     h.eqList(s.ui.modes, { MeowMode.INSERT })
     s:pressEsc()
     h.eqList(s.ui.modes, { MeowMode.INSERT, MeowMode.NORMAL })
+  end)
+
+  it('given the bundled defaults then SPC m exposes the M- motion and edit layer', function()
+    h.freshSpec()
+    local k = Rc.defaults().keypad
+    h.eq(k['ma'].command, 'backward-sentence')
+    h.eq(k['mb'].command, 'backward-word')
+    h.eq(k['mc'].command, 'capitalize-word')
+    h.eq(k['md'].command, 'kill-word')
+    h.eq(k['me'].command, 'forward-sentence')
+    h.eq(k['mf'].command, 'forward-word')
+    h.eq(k['ml'].command, 'downcase-word')
+    h.eq(k['mu'].command, 'upcase-word')
+    h.eq(k['m<'].command, 'beginning-of-buffer')
+    h.eq(k['m>'].command, 'end-of-buffer')
+    h.eq(k['m{'].command, 'backward-paragraph')
+    h.eq(k['m}'].command, 'forward-paragraph')
+  end)
+
+  it('given the SPC m keypad then a meta word motion runs and returns to NORMAL', function()
+    local s = h.freshSpec()
+    s:given('two words', '<caret>hello world')
+    s:whenKeys(' mf')
+    h.ok(s.editor.sels[1].active > 0, 'caret advanced')
+    s:thenMode(MeowMode.NORMAL)
   end)
 end)

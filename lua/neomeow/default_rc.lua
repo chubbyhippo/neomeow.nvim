@@ -175,6 +175,20 @@ map <leader>cjc avy-goto-char-timer
 map <leader>cjl avy-goto-line
 
 " SPC m = M-: meta
+" M- motions / edits — the meta layer under SPC m, the way meow's keypad
+" exposes the whole M- map (SPC m f = M-f = forward-word, SPC m d = M-d, ...).
+map <leader>ma backward-sentence
+map <leader>mb backward-word
+map <leader>mc capitalize-word
+map <leader>md kill-word
+map <leader>me forward-sentence
+map <leader>mf forward-word
+map <leader>ml downcase-word
+map <leader>mu upcase-word
+map <leader>m< beginning-of-buffer
+map <leader>m> end-of-buffer
+map <leader>m{ backward-paragraph
+map <leader>m} forward-paragraph
 map <leader>mx <action>(call feedkeys(':'))
 map <leader>mo avy-goto-char-timer
 map <leader>mq <action>(normal! gqip)
@@ -193,6 +207,7 @@ map <leader>wD <action>(only)
 map <leader>wm <action>(only)
 map <leader>ww ace-window
 map <leader>wW ace-swap-window
+map <leader>wr ace-resize
 " n/p (aliases . and ,): cycle buffers (C-x <right>/<left>); the tab
 " repeat group below keeps a bare n/p/./, walking afterwards
 map <leader>wn <action>(bnext)

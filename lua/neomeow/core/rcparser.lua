@@ -249,6 +249,7 @@ function M.parse(lines)
           local cmd, rest = line:match('^(%S+)%s*(.*)$')
           rest = rest:match('^%s*(.-)%s*$')
           if cmd == 'let' then
+          elseif cmd == 'cmap' or cmd == 'cnoremap' then
           elseif cmd == 'set' then
             parseSet(c, rest)
           elseif cmd == 'desc' then
