@@ -99,8 +99,8 @@ local function block(ctx)
   local sel = Sel.primary(ctx)
   local active = ctx.st.selType == SelType.BLOCK and Sel.hasSelection(sel)
   local back = Sel.backwardP(ctx) ~= (ctx.st:takeCount(1) < 0)
-  local s = active and math.min(sel.anchor, sel.active) or sel.active
-  local e = active and math.max(sel.anchor, sel.active) or sel.active
+  local s = active and Sel.lo(sel) or sel.active
+  local e = active and Sel.hi(sel) or sel.active
   local p = enclosingPair(text, s, e)
   if p == nil then
     ctx.ui:hint('No enclosing block')

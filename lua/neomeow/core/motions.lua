@@ -236,8 +236,8 @@ local function wordMotion(ctx, symbol, n)
   local text = ctx.port:getText()
   local type_ = wordType(symbol)
   local sel = Sel.primary(ctx)
-  local lo = math.min(sel.anchor, sel.active)
-  local hi = math.max(sel.anchor, sel.active)
+  local lo = Sel.lo(sel)
+  local hi = Sel.hi(sel)
   if not (Sel.hasSelection(sel) and ctx.st.selType == type_) then
     Sel.cancel(ctx)
   end

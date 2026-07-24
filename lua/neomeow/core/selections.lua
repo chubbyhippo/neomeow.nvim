@@ -41,6 +41,14 @@ function M.hasSelection(sel)
   return sel.anchor ~= sel.active
 end
 
+function M.lo(sel)
+  return math.min(sel.anchor, sel.active)
+end
+
+function M.hi(sel)
+  return math.max(sel.anchor, sel.active)
+end
+
 function M.backwardP(ctx)
   local sel = M.primary(ctx)
   return M.hasSelection(sel) and sel.active < sel.anchor

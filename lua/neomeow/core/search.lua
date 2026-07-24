@@ -78,7 +78,7 @@ local function search(ctx)
   local sel = Sel.primary(ctx)
   local pattern = st.searchHistory[#st.searchHistory]
   if Sel.hasSelection(sel) then
-    local selText = text_.slice(ctx.port:getText(), math.min(sel.anchor, sel.active), math.max(sel.anchor, sel.active))
+    local selText = text_.slice(ctx.port:getText(), Sel.lo(sel), Sel.hi(sel))
     if #selText > 0 and (pattern == nil or not ctx.rx.fullyMatches(pattern, selText)) then
       pattern = text_.regexQuote(selText)
       M.push(st, pattern)

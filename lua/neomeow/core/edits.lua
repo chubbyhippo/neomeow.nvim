@@ -41,7 +41,7 @@ local function editCarets(ctx, compute)
   local sels = ctx.port:getSelections()
   local order = {}
   for index, sel in ipairs(sels) do
-    table.insert(order, { sel = sel, index = index, lo = math.min(sel.anchor, sel.active) })
+    table.insert(order, { sel = sel, index = index, lo = Sel.lo(sel) })
   end
   table.sort(order, function(a, b)
     if a.lo ~= b.lo then
@@ -52,7 +52,7 @@ local function editCarets(ctx, compute)
   local edits = {}
   local results = {}
   for _, item in ipairs(order) do
-    local hi = math.max(item.sel.anchor, item.sel.active)
+    local hi = Sel.hi(item.sel)
     local r = compute(item.sel, item.lo, hi)
     if r.edit ~= nil then
       table.insert(edits, r.edit)
@@ -89,7 +89,7 @@ end
 local function insert(ctx)
   local moved = {}
   for i, s in ipairs(ctx.port:getSelections()) do
-    local o = math.min(s.anchor, s.active)
+    local o = Sel.lo(s)
     moved[i] = { anchor = o, active = o }
   end
   ctx.port:setSelections(moved)
@@ -101,7 +101,7 @@ end
 local function append(ctx)
   local moved = {}
   for i, s in ipairs(ctx.port:getSelections()) do
-    local o = math.max(s.anchor, s.active)
+    local o = Sel.hi(s)
     moved[i] = { anchor = o, active = o }
   end
   ctx.port:setSelections(moved)
@@ -182,8 +182,8 @@ local function backwardDelete(ctx)
 end
 
 local function killRange(ctx, sel, text)
-  local lo = math.min(sel.anchor, sel.active)
-  local hi = math.max(sel.anchor, sel.active)
+  local lo = Sel.lo(sel)
+  local hi = Sel.hi(sel)
   if ctx.st.selType == SelType.LINE and sel.active >= sel.anchor and hi < #text then
     if text_.charAt(text, hi) == '\r' then
       hi = hi + 1
@@ -203,7 +203,7 @@ local function regionsInOrder(sels)
     end
   end
   table.sort(regions, function(a, b)
-    return math.min(a.anchor, a.active) < math.min(b.anchor, b.active)
+    return Sel.lo(a) < Sel.lo(b)
   end)
   return regions
 end
@@ -220,8 +220,8 @@ end
 local function joinKill(ctx)
   local text = ctx.port:getText()
   local prim = Sel.primary(ctx)
-  local s = math.min(prim.anchor, prim.active)
-  local e = math.max(prim.anchor, prim.active)
+  local s = Sel.lo(prim)
+  local e = Sel.hi(prim)
   local before = s > 0 and text_.charAt(text, s - 1) or '\n'
   local after = e < #text and text_.charAt(text, e) or '\n'
   local space = before ~= '\n'

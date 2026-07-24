@@ -17,6 +17,7 @@
 
 local Rc = require('neomeow.core.rc')
 local whichkey = require('neomeow.core.whichkey')
+local Sel = require('neomeow.core.selections')
 local MeowMode = require('neomeow.core.state').MeowMode
 
 local ns = vim.api.nvim_create_namespace('neomeow')
@@ -87,8 +88,8 @@ function M.make(getCtx, buf, win)
     markRange(grabRange, 'NeomeowGrab')
     local ctx = getCtx()
     for _, sel in ipairs(ctx.port:getSelections()) do
-      local lo = math.min(sel.anchor, sel.active)
-      local hi = math.max(sel.anchor, sel.active)
+      local lo = Sel.lo(sel)
+      local hi = Sel.hi(sel)
       markRange({ start = lo, stop = hi }, 'NeomeowSelection')
     end
   end

@@ -74,7 +74,7 @@ local function grab(ctx)
   clear(ctx)
   local sel = Sel.primary(ctx)
   if Sel.hasSelection(sel) then
-    set(ctx, math.min(sel.anchor, sel.active), math.max(sel.anchor, sel.active))
+    set(ctx, Sel.lo(sel), Sel.hi(sel))
   end
   Sel.cancel(ctx)
 end
@@ -86,7 +86,7 @@ local function sync(ctx)
     return
   end
   clear(ctx)
-  set(ctx, math.min(sel.anchor, sel.active), math.max(sel.anchor, sel.active))
+  set(ctx, Sel.lo(sel), Sel.hi(sel))
   Sel.cancel(ctx)
 end
 
@@ -108,8 +108,8 @@ local function swap(ctx)
   end
   local gs = g.start
   local ge = g.stop
-  local ss = math.min(sel.anchor, sel.active)
-  local se = math.max(sel.anchor, sel.active)
+  local ss = Sel.lo(sel)
+  local se = Sel.hi(sel)
   if math.max(gs, ss) < math.min(ge, se) and not (gs == ss and ge == se) then
     ctx.ui:hint('Selection overlaps the grab')
     return
@@ -159,8 +159,8 @@ function M.beacon(ctx)
   if not Sel.hasSelection(sel) then
     return
   end
-  local ss = math.min(sel.anchor, sel.active)
-  local se = math.max(sel.anchor, sel.active)
+  local ss = Sel.lo(sel)
+  local se = Sel.hi(sel)
   if ss < g.start or se > g.stop or se == ss then
     return
   end
