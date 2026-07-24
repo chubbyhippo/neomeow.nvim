@@ -30,10 +30,15 @@ local function setHighlights()
     end
   end
   ensure('NeomeowSelection', { link = 'Visual', default = true })
-  ensure('NeomeowGrab', { link = 'DiffAdd', default = true })
+  local grab = Rc.grabColor()
+  if grab ~= nil then
+    ensure('NeomeowGrab', { bg = grab, default = true })
+  else
+    ensure('NeomeowGrab', { link = 'DiffAdd', default = true })
+  end
   ensure('NeomeowMatch', { link = 'Search', default = true })
-  ensure('NeomeowAvyLead', { fg = '#ffffff', bg = '#e52b50', bold = true, default = true })
-  ensure('NeomeowHint', { fg = '#ffffff', bg = '#2b5db2', bold = true, default = true })
+  ensure('NeomeowAvyLead', { fg = Rc.overlayTextColor(), bg = Rc.overlayColor(), bold = true, default = true })
+  ensure('NeomeowHint', { fg = '#ffffff', bg = Rc.expandHintColor(), bold = true, default = true })
 end
 
 local function offsetToRC(buf, off)

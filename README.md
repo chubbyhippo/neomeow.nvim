@@ -104,11 +104,28 @@ rc line grammar:
 | `map <leader><seq> <target>` | keypad (`SPC`) entry |
 | `desc <leader><seq> <text>` | which-key label for an entry or group |
 | `set timeoutlen=N` · `set nowhich-key` | which-key popup delay / off |
+| `set overlay-color=#RRGGBB` … | overlay / hint / grab colors (see below) |
 | `repeat <group> <key> <target>` | tap-to-continue run (see below) |
 
 Bind a key to `ignore` to disable it. `<action>(…)` runs its body as a Neovim
 ex-command line (`<action>(vsplit)`, `<action>(lua vim.lsp.buf.hover())`,
 `<action>(Telescope find_files)`); list command names with `SPC i d`.
+
+### Colors
+
+Four `set` lines recolor the overlays with `#RRGGBB` hex — one value applies
+in both light and dark backgrounds:
+
+| Line | Colors |
+|---|---|
+| `set overlay-color=#RRGGBB` | the avy / ace label background |
+| `set overlay-text-color=#RRGGBB` | the avy / ace label text |
+| `set expand-hint-color=#RRGGBB` | the `0`–`9` expand-hint badge |
+| `set grab-color=#RRGGBB` | the grab / beacon highlight |
+
+Leave a line out to keep the built-in default; the grab highlight then follows
+your colorscheme's `DiffAdd`. A malformed hex is reported like any other rc
+error and the color is left at its default.
 
 ### Repeat runs
 

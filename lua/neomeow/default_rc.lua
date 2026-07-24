@@ -32,10 +32,23 @@ return [[
 "   desc <leader><seq> <text>         which-key label for an entry or a group
 "   set timeoutlen=300                which-key popup delay in ms
 "   set nowhich-key                   turn the which-key popup off
+"   set overlay-color=#RRGGBB         avy/ace label background
+"   set overlay-text-color=#RRGGBB    avy/ace label text
+"   set expand-hint-color=#RRGGBB     0-9 expand-hint badge
+"   set grab-color=#RRGGBB            grab / beacon highlight
 " ============================================================================
 
 set which-key
 set timeoutlen=300
+
+" Overlay colors — one #RRGGBB per option, applied to both light and dark
+" themes. The two label colors sit at their defaults; the expand-hint badge
+" keeps its built-in color and the grab highlight follows the DiffAdd group
+" unless you pin one here.
+set overlay-color=#E52B50
+set overlay-text-color=#ffffff
+" set expand-hint-color=#2b5db2
+" set grab-color=#cde8cd
 
 " ============================================================================
 " The meow layout — QWERTY by default, every key rebindable

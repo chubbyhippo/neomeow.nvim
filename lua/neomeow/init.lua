@@ -56,6 +56,10 @@ local SEED = [[
 --   'map <leader><seq> <target>'       keypad (SPC) entry
 --   'desc <leader><seq> text'          which-key label
 --   'set timeoutlen=300'  /  'set nowhich-key'
+--   'set overlay-color=#RRGGBB'         avy/ace label background
+--   'set overlay-text-color=#RRGGBB'    avy/ace label text
+--   'set expand-hint-color=#RRGGBB'     0-9 expand-hint badge
+--   'set grab-color=#RRGGBB'            grab / beacon highlight
 --   'repeat <group> <key> <target>'    tap-to-continue run
 return {
   rc = {

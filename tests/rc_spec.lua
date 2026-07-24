@@ -195,6 +195,43 @@ describe('RcSpec', function()
     h.eq(Rc.whichKeyDelayMs(), 150)
   end)
 
+  it('given overlay color set lines then they parse into rgb colors', function()
+    local c = Rc.parse({
+      'set overlay-color=#E52B50',
+      'set overlay-text-color=#ffffff',
+      'set expand-hint-color=#d05c0a',
+      'set grab-color=#CDE8CD',
+    })
+    h.eq(c.overlayColor, '#e52b50')
+    h.eq(c.overlayTextColor, '#ffffff')
+    h.eq(c.expandHintColor, '#d05c0a')
+    h.eq(c.grabColor, '#cde8cd')
+    h.eqList(c.errors, {})
+  end)
+
+  it('given a malformed overlay color then an error is collected and it stays unset', function()
+    local c = Rc.parse({ 'set overlay-color=#12345', 'set grab-color=nope' })
+    h.eq(c.overlayColor, nil)
+    h.eq(c.grabColor, nil)
+    h.eq(#c.errors, 2)
+    h.ok(c.errors[1]:find('overlay-color', 1, true))
+  end)
+
+  it('given an unknown set color option then it is ignored without error', function()
+    local c = Rc.parse({ 'set cursor-color=#123456' })
+    h.eq(c.overlayColor, nil)
+    h.eqList(c.errors, {})
+  end)
+
+  it('overlay colors layer user over the bundled default', function()
+    h.freshSpec()
+    h.eq(Rc.overlayColor(), '#e52b50')
+    h.eq(Rc.grabColor(), nil)
+    Rc.setForTest(Rc.parse(vim.split('set overlay-color=#010203\nset grab-color=#040506', '\n', { plain = true })))
+    h.eq(Rc.overlayColor(), '#010203')
+    h.eq(Rc.grabColor(), '#040506')
+  end)
+
   it('given a trailing comment then it is stripped from the line', function()
     local c = Rc.parse({
       'nmap S <action>(extension.aceJump)   " jump anywhere',

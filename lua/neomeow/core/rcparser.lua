@@ -31,6 +31,10 @@ function M.newConfig()
     repeatOrder = {},
     whichKey = nil,
     whichKeyDelayMs = nil,
+    overlayColor = nil,
+    overlayTextColor = nil,
+    expandHintColor = nil,
+    grabColor = nil,
     errors = {},
   }
 end
@@ -112,7 +116,38 @@ local function parseTarget(rhs, recursive, errContext, err)
   return { keys = keys, recursive = recursive }
 end
 
-local function parseSet(c, rest)
+local COLOR_SET_KEYS = {
+  ['overlay-color'] = 'overlayColor',
+  ['overlay-text-color'] = 'overlayTextColor',
+  ['expand-hint-color'] = 'expandHintColor',
+  ['grab-color'] = 'grabColor',
+}
+
+local function parseHexColor(text)
+  local hex = text:gsub('^#', '')
+  if hex:match('^%x%x%x%x%x%x$') == nil then
+    return nil
+  end
+  return '#' .. hex:lower()
+end
+
+local function parseSetColor(c, rest, err)
+  local key = rest:match('^([^=]*)'):match('^%s*(.-)%s*$')
+  local field = COLOR_SET_KEYS[key]
+  if field == nil then
+    return
+  end
+  local eqPos = rest:find('=', 1, true)
+  local raw = (eqPos ~= nil and rest:sub(eqPos + 1) or ''):match('^%s*(.-)%s*$')
+  local color = parseHexColor(raw)
+  if color == nil then
+    err('set ' .. key .. ": invalid color '" .. raw .. "' (expected #RRGGBB)")
+    return
+  end
+  c[field] = color
+end
+
+local function parseSet(c, rest, err)
   if rest == 'which-key' then
     c.whichKey = true
   elseif rest == 'nowhich-key' then
@@ -128,6 +163,8 @@ local function parseSet(c, rest)
     if n ~= nil and n >= 0 then
       c.whichKeyDelayMs = n
     end
+  else
+    parseSetColor(c, rest, err)
   end
 end
 
@@ -251,7 +288,7 @@ function M.parse(lines)
           if cmd == 'let' then
           elseif cmd == 'cmap' or cmd == 'cnoremap' then
           elseif cmd == 'set' then
-            parseSet(c, rest)
+            parseSet(c, rest, err)
           elseif cmd == 'desc' then
             parseDescBody(c, rest, err)
           elseif

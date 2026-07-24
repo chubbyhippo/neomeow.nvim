@@ -25,6 +25,11 @@ M.USER_FILE_NAME = 'neomeow.lua'
 
 local DEFAULT_WHICH_KEY_DELAY_MS = 250
 
+local DEFAULT_OVERLAY_COLOR = '#e52b50'
+local DEFAULT_OVERLAY_TEXT_COLOR = '#ffffff'
+local DEFAULT_EXPAND_HINT_COLOR = '#2b5db2'
+local DEFAULT_GRAB_COLOR = nil
+
 local userConfig = rcParser.newConfig()
 local defaultConfig = rcParser.newConfig()
 
@@ -174,6 +179,42 @@ function M.whichKeyDelayMs()
     return defaultConfig.whichKeyDelayMs
   end
   return DEFAULT_WHICH_KEY_DELAY_MS
+end
+
+local function resolveColor(fallback, pick)
+  local v = pick(userConfig)
+  if v ~= nil then
+    return v
+  end
+  v = pick(defaultConfig)
+  if v ~= nil then
+    return v
+  end
+  return fallback
+end
+
+function M.overlayColor()
+  return resolveColor(DEFAULT_OVERLAY_COLOR, function(c)
+    return c.overlayColor
+  end)
+end
+
+function M.overlayTextColor()
+  return resolveColor(DEFAULT_OVERLAY_TEXT_COLOR, function(c)
+    return c.overlayTextColor
+  end)
+end
+
+function M.expandHintColor()
+  return resolveColor(DEFAULT_EXPAND_HINT_COLOR, function(c)
+    return c.expandHintColor
+  end)
+end
+
+function M.grabColor()
+  return resolveColor(DEFAULT_GRAB_COLOR, function(c)
+    return c.grabColor
+  end)
 end
 
 return M
