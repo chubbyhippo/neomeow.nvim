@@ -132,16 +132,16 @@ local function parseHexColor(text)
 end
 
 local function parseSetColor(c, rest, err)
-  local key = rest:match('^([^=]*)'):match('^%s*(.-)%s*$')
+  local key, value = rest:match('^([^=]*)=?(.*)$')
+  key = key:match('^%s*(.-)%s*$')
   local field = COLOR_SET_KEYS[key]
   if field == nil then
     return
   end
-  local eqPos = rest:find('=', 1, true)
-  local raw = (eqPos ~= nil and rest:sub(eqPos + 1) or ''):match('^%s*(.-)%s*$')
-  local color = parseHexColor(raw)
+  value = value:match('^%s*(.-)%s*$')
+  local color = parseHexColor(value)
   if color == nil then
-    err('set ' .. key .. ": invalid color '" .. raw .. "' (expected #RRGGBB)")
+    err('set ' .. key .. ": invalid color '" .. value .. "' (expected #RRGGBB)")
     return
   end
   c[field] = color

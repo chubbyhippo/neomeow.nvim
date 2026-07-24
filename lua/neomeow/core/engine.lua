@@ -30,6 +30,8 @@ local M = {}
 
 local KEYPAD_BINDING = { command = 'meow-keypad', recursive = true }
 
+local MAX_REPLAY_DEPTH = 8
+
 M.repeatMap = nil
 
 function M.clearRepeat()
@@ -74,6 +76,13 @@ local function resolvePending(ctx, p, c)
   else
     Structures.thingSelect(ctx, p, c)
   end
+end
+
+local function startsMultiKeyInput(st, cmd)
+  return st.pending ~= nil
+    or (st.pendingCount ~= 0 and cmd ~= nil and cmd:sub(1, 12) == 'meow-expand-')
+    or (st.negative and cmd == 'meow-negative-argument')
+    or cmd == 'meow-keypad'
 end
 
 function M.handleChar(ctx, c)
@@ -133,11 +142,7 @@ function M.handleChar(ctx, c)
     st.lastCommand = nil
   end
 
-  local prefixy = st.pending ~= nil
-    or (st.pendingCount ~= 0 and cmd ~= nil and cmd:sub(1, 12) == 'meow-expand-')
-    or (st.negative and cmd == 'meow-negative-argument')
-    or cmd == 'meow-keypad'
-  if not st.replaying and cmd ~= 'repeat' and not prefixy then
+  if not st.replaying and cmd ~= 'repeat' and not startsMultiKeyInput(st, cmd) then
     local copy = {}
     for i, k in ipairs(st.unit) do
       copy[i] = k
@@ -190,7 +195,7 @@ local function dispatch(ctx, b)
   if b.keys == nil then
     return
   end
-  if st.replayDepth >= 8 then
+  if st.replayDepth >= MAX_REPLAY_DEPTH then
     ctx.ui:hint('neomeow: mapping recursion is too deep')
     return
   end

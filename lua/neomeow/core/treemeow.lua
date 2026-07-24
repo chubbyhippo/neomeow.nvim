@@ -19,6 +19,8 @@ local Rc = require('neomeow.core.rc')
 
 local M = {}
 
+local MAX_DISPATCH_DEPTH = 8
+
 local LIST_MOTIONS = {
   ['meow-next'] = 'neomeow.tree.focusDown',
   ['meow-prev'] = 'neomeow.tree.focusUp',
@@ -73,7 +75,7 @@ function M.dispatch(run, c, noremap, depth)
   if b.keys == nil then
     return
   end
-  if depth >= 8 then
+  if depth >= MAX_DISPATCH_DEPTH then
     return
   end
   for i = 1, #b.keys do

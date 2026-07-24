@@ -76,6 +76,16 @@ local function editCarets(ctx, compute)
   ctx.port:setSelections(newSels)
 end
 
+local function deleteSelectionOrCharForward(text, lo, hi)
+  if lo ~= hi then
+    return { edit = { start = lo, stop = hi, text = '' }, sel = { anchor = lo, active = lo } }
+  end
+  if lo < #text then
+    return { edit = { start = lo, stop = lo + 1, text = '' }, sel = { anchor = lo, active = lo } }
+  end
+  return { edit = nil, sel = { anchor = lo, active = lo } }
+end
+
 local function insert(ctx)
   local moved = {}
   for i, s in ipairs(ctx.port:getSelections()) do
@@ -138,13 +148,7 @@ local function change(ctx)
     return
   end
   editCarets(ctx, function(_sel, lo, hi)
-    if lo ~= hi then
-      return { edit = { start = lo, stop = hi, text = '' }, sel = { anchor = lo, active = lo } }
-    end
-    if lo < #text then
-      return { edit = { start = lo, stop = lo + 1, text = '' }, sel = { anchor = lo, active = lo } }
-    end
-    return { edit = nil, sel = { anchor = lo, active = lo } }
+    return deleteSelectionOrCharForward(text, lo, hi)
   end)
   ctx.st.selType = SelType.NONE
   port_.setMode(ctx, MeowMode.INSERT)
@@ -156,13 +160,7 @@ local function del(ctx)
   end
   local text = ctx.port:getText()
   editCarets(ctx, function(_sel, lo, hi)
-    if lo ~= hi then
-      return { edit = { start = lo, stop = hi, text = '' }, sel = { anchor = lo, active = lo } }
-    end
-    if lo < #text then
-      return { edit = { start = lo, stop = lo + 1, text = '' }, sel = { anchor = lo, active = lo } }
-    end
-    return { edit = nil, sel = { anchor = lo, active = lo } }
+    return deleteSelectionOrCharForward(text, lo, hi)
   end)
   ctx.st.selType = SelType.NONE
 end

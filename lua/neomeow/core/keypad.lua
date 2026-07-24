@@ -119,7 +119,7 @@ function M.key(ctx, c)
   end
   if buf == '' then
     if c >= '0' and c <= '9' then
-      st.pendingCount = st.pendingCount * 10 + (c:byte() - 48)
+      st.pendingCount = st.pendingCount * 10 + (c:byte() - string.byte('0'))
       M.exit(ctx)
       return
     end

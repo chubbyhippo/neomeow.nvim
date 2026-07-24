@@ -125,6 +125,16 @@ local function toBlock(ctx)
   Sel.select(ctx, SelType.BLOCK, caret, back and p.open or (p.close + 1), true)
 end
 
+local function selectJoin(ctx, text, markLine, pointLine)
+  local mark = text_.lineEnd(text, markLine)
+  local point = text_.lineStart(text, pointLine)
+  local eol = text_.lineEnd(text, pointLine)
+  while point < eol and text_.charAt(text, point):match('^%s$') ~= nil do
+    point = point + 1
+  end
+  Sel.select(ctx, SelType.JOIN, mark, point, true)
+end
+
 local function join(ctx)
   local text = ctx.port:getText()
   if #text == 0 then
@@ -143,13 +153,7 @@ local function join(ctx)
     if pl < 0 then
       return
     end
-    local m = text_.lineEnd(text, pl)
-    local p = text_.lineStart(text, ln)
-    local eol = text_.lineEnd(text, ln)
-    while p < eol and text_.charAt(text, p):match('^%s$') ~= nil do
-      p = p + 1
-    end
-    Sel.select(ctx, SelType.JOIN, m, p, true)
+    selectJoin(ctx, text, pl, ln)
   else
     local last = text_.lineCount(text) - 1
     local nl = ln + 1
@@ -159,13 +163,7 @@ local function join(ctx)
     if nl > last then
       return
     end
-    local m = text_.lineEnd(text, ln)
-    local p = text_.lineStart(text, nl)
-    local eol = text_.lineEnd(text, nl)
-    while p < eol and text_.charAt(text, p):match('^%s$') ~= nil do
-      p = p + 1
-    end
-    Sel.select(ctx, SelType.JOIN, m, p, true)
+    selectJoin(ctx, text, ln, nl)
   end
 end
 

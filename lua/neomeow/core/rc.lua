@@ -181,40 +181,30 @@ function M.whichKeyDelayMs()
   return DEFAULT_WHICH_KEY_DELAY_MS
 end
 
-local function resolveColor(fallback, pick)
-  local v = pick(userConfig)
-  if v ~= nil then
-    return v
+local function resolveColor(field, fallback)
+  if userConfig[field] ~= nil then
+    return userConfig[field]
   end
-  v = pick(defaultConfig)
-  if v ~= nil then
-    return v
+  if defaultConfig[field] ~= nil then
+    return defaultConfig[field]
   end
   return fallback
 end
 
 function M.overlayColor()
-  return resolveColor(DEFAULT_OVERLAY_COLOR, function(c)
-    return c.overlayColor
-  end)
+  return resolveColor('overlayColor', DEFAULT_OVERLAY_COLOR)
 end
 
 function M.overlayTextColor()
-  return resolveColor(DEFAULT_OVERLAY_TEXT_COLOR, function(c)
-    return c.overlayTextColor
-  end)
+  return resolveColor('overlayTextColor', DEFAULT_OVERLAY_TEXT_COLOR)
 end
 
 function M.expandHintColor()
-  return resolveColor(DEFAULT_EXPAND_HINT_COLOR, function(c)
-    return c.expandHintColor
-  end)
+  return resolveColor('expandHintColor', DEFAULT_EXPAND_HINT_COLOR)
 end
 
 function M.grabColor()
-  return resolveColor(DEFAULT_GRAB_COLOR, function(c)
-    return c.grabColor
-  end)
+  return resolveColor('grabColor', DEFAULT_GRAB_COLOR)
 end
 
 return M

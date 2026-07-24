@@ -229,6 +229,16 @@ local function syncCursorToState(ctx, buf)
   end
 end
 
+local function setNormalKeymaps(buf)
+  for key in pairs(boundKeys()) do
+    vim.keymap.set('n', key, function()
+      local ctx = contexts[buf]
+      syncCursorToState(ctx, buf)
+      Engine.handleChar(ctx, key)
+    end, { buffer = buf, nowait = true, desc = 'neomeow key' })
+  end
+end
+
 function M.attach(buf)
   if contexts[buf] ~= nil then
     return contexts[buf]
@@ -252,12 +262,7 @@ function M.attach(buf)
   vim.wo[vim.fn.bufwinid(buf) ~= -1 and vim.fn.bufwinid(buf) or 0].virtualedit = 'onemore'
   vim.b[buf].neomeow_mode = st.mode
 
-  for key in pairs(boundKeys()) do
-    vim.keymap.set('n', key, function()
-      syncCursorToState(ctx, buf)
-      Engine.handleChar(ctx, key)
-    end, { buffer = buf, nowait = true, desc = 'neomeow key' })
-  end
+  setNormalKeymaps(buf)
 
   vim.keymap.set('n', '<Esc>', function()
     Engine.escapeKey(ctx)
@@ -297,12 +302,7 @@ function M.reloadUserRc(lines)
       for key in pairs(boundKeys()) do
         pcall(vim.keymap.del, 'n', key, { buffer = buf })
       end
-      for key in pairs(boundKeys()) do
-        vim.keymap.set('n', key, function()
-          syncCursorToState(contexts[buf], buf)
-          Engine.handleChar(contexts[buf], key)
-        end, { buffer = buf, nowait = true, desc = 'neomeow key' })
-      end
+      setNormalKeymaps(buf)
     end
   end
 end
