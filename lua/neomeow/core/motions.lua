@@ -32,6 +32,16 @@ local function lineEndTarget(text, off)
   return text_.lineEnd(text, text_.lineOfOffset(text, off))
 end
 
+local function indentationTarget(text, off)
+  local line = text_.lineOfOffset(text, off)
+  local stop = text_.lineEnd(text, line)
+  local at = text_.lineStart(text, line)
+  while at < stop and text_.isBlank(text:sub(at + 1, at + 1)) do
+    at = at + 1
+  end
+  return at
+end
+
 local function wordType(symbol)
   if symbol then
     return SelType.SYMBOL
@@ -418,6 +428,9 @@ M.commands = {
   end,
   ['move-end-of-line'] = function(ctx)
     moveToOrExpand(ctx, SelType.CHAR, lineEndTarget)
+  end,
+  ['back-to-indentation'] = function(ctx)
+    moveToOrExpand(ctx, SelType.CHAR, indentationTarget)
   end,
   ['forward-word'] = function(ctx)
     wordOrExpand(ctx, ctx.st:takeCount(1))

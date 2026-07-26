@@ -403,4 +403,8 @@ function M.Words.fixSelectionMark(text, pos, mark, pred)
   return math.max(mark, bounds[1])
 end
 
+function M.isBlank(ch)
+  return ch == ' ' or ch == '\t'
+end
+
 return M

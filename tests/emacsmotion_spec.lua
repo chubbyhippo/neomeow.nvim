@@ -7,6 +7,21 @@ local describe, it = h.describe, h.it
 local SelType = h.SelType
 
 describe('EmacsMotionSpec', function()
+  it('given an indented line then back-to-indentation lands on the first real char', function()
+    local s = h.freshSpec()
+    s:given('indented', '    hel<caret>lo')
+    s:whenCommand('back-to-indentation')
+    s:thenCaretAt(4)
+  end)
+
+  it('given a selection then back-to-indentation extends it like the other motions', function()
+    local s = h.freshSpec()
+    s:given('indented', '    hello world<caret>')
+    s:whenKeys('w')
+    s:whenCommand('back-to-indentation')
+    s:thenSelection('hello ')
+  end)
+
   it('given no selection when forward-char then the caret moves right without selecting', function()
     local s = h.freshSpec()
     s:given('plain text', '<caret>hello')

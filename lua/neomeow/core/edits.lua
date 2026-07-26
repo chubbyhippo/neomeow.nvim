@@ -124,6 +124,43 @@ local function openBelow(ctx)
   port_.setMode(ctx, MeowMode.INSERT)
 end
 
+local function openLine(ctx)
+  if M.blockedReadOnly(ctx) then
+    return
+  end
+  Sel.collapse(ctx)
+  local at = Sel.primary(ctx).active
+  local edits = { { start = at, stop = at, text = '\n' } }
+  Grab.adjustForEdits(ctx.st, edits)
+  ctx.port:edit(edits)
+  ctx.port:setSelections({ { anchor = at, active = at } })
+end
+
+local function horizontalSpace(ctx, replacement)
+  if M.blockedReadOnly(ctx) then
+    return
+  end
+  Sel.collapse(ctx)
+  local text = ctx.port:getText()
+  local at = Sel.primary(ctx).active
+  local from = at
+  while from > 0 and text_.isBlank(text:sub(from, from)) do
+    from = from - 1
+  end
+  local to = at
+  while to < #text and text_.isBlank(text:sub(to + 1, to + 1)) do
+    to = to + 1
+  end
+  if from == to and replacement == '' then
+    return
+  end
+  local edits = { { start = from, stop = to, text = replacement } }
+  Grab.adjustForEdits(ctx.st, edits)
+  ctx.port:edit(edits)
+  local caret = from + #replacement
+  ctx.port:setSelections({ { anchor = caret, active = caret } })
+end
+
 local function openAbove(ctx)
   if M.blockedReadOnly(ctx) then
     return
@@ -487,6 +524,13 @@ M.commands = {
     caseWord(ctx, 'capitalize')
   end,
   ['kill-word'] = killWord,
+  ['open-line'] = openLine,
+  ['delete-horizontal-space'] = function(ctx)
+    horizontalSpace(ctx, '')
+  end,
+  ['just-one-space'] = function(ctx)
+    horizontalSpace(ctx, ' ')
+  end,
 }
 
 return M
