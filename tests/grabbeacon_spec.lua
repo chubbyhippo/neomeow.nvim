@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local MeowMode = h.MeowMode
 
 describe('GrabBeaconSpec', function()
@@ -26,11 +27,7 @@ describe('GrabBeaconSpec', function()
     s:whenKeys('R')
     s:thenText('three two one')
     s:thenNoSelection()
-    h.eq(
-      s.editor.text:sub(s.st.grab.start + 1, s.st.grab.stop),
-      'three',
-      'grab now holds the swapped-in text'
-    )
+    h.eq(s.editor.text:sub(s.st.grab.start + 1, s.st.grab.stop), 'three', 'grab now holds the swapped-in text')
   end)
 
   it('given no selection when G then an existing grab is cancelled (meow 1.5.0 body)', function()

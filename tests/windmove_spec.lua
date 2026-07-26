@@ -3,17 +3,21 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local Ace = require('neomeow.core.acewindow')
 local windmove = require('neomeow.core.windmove')
 local Rc = require('neomeow.core.rc')
 
 describe('WindmoveSpec', function()
   it('given window rectangles then ace-window orders them left to right then top down', function()
-    h.eqList(Ace.ordered({
-      { item = 'R', x = 40, y = 0 },
-      { item = 'L2', x = 0, y = 12 },
-      { item = 'L1', x = 0, y = 0 },
-    }), { 'L1', 'L2', 'R' })
+    h.eqList(
+      Ace.ordered({
+        { item = 'R', x = 40, y = 0 },
+        { item = 'L2', x = 0, y = 12 },
+        { item = 'L1', x = 0, y = 0 },
+      }),
+      { 'L1', 'L2', 'R' }
+    )
   end)
 
   it('given one two or many windows then ace-window plans self other or labels', function()

@@ -55,7 +55,7 @@ local function offsetToRC(buf, off)
   return last - 1, #(lines[last] or '')
 end
 
-function M.make(getCtx, buf, win)
+function M.make(getCtx, buf)
   local ui = {}
   local timers = {}
   local timerSeq = 0
@@ -83,7 +83,7 @@ function M.make(getCtx, buf, win)
 
   local grabRange = nil
 
-  function ui:repaintSelection(st)
+  local function repaintSelection()
     clearNs()
     markRange(grabRange, 'NeomeowGrab')
     local ctx = getCtx()
@@ -94,11 +94,11 @@ function M.make(getCtx, buf, win)
     end
   end
 
-  function ui:hint(text)
+  function ui.hint(_, text)
     vim.api.nvim_echo({ { 'neomeow: ' .. text, 'WarningMsg' } }, false, {})
   end
 
-  function ui:info(title, body)
+  function ui.info(_, title, body)
     local lines = { title, string.rep('-', #title) }
     for _, l in ipairs(vim.split(body, '\n', { plain = true })) do
       table.insert(lines, l)
@@ -126,19 +126,20 @@ function M.make(getCtx, buf, win)
     return fwin
   end
 
-  function ui:input(prompt, initial)
-    local ok, result = pcall(vim.fn.input, { prompt = (prompt or '') .. ' ', default = initial or '', cancelreturn = '\0' })
+  function ui.input(_, prompt, initial)
+    local ok, result =
+      pcall(vim.fn.input, { prompt = (prompt or '') .. ' ', default = initial or '', cancelreturn = '\0' })
     if not ok or result == '\0' then
       return nil
     end
     return result
   end
 
-  function ui:runCommand(id)
+  function ui.runCommand(_, id)
     vim.cmd(id)
   end
 
-  function ui:hideWhichKey()
+  function ui.hideWhichKey()
     if whichKeyTimer ~= nil then
       whichKeyTimer:stop()
       whichKeyTimer = nil
@@ -190,7 +191,7 @@ function M.make(getCtx, buf, win)
     whichKeyShown = true
   end
 
-  function ui:scheduleWhichKey(kind, buffer)
+  function ui.scheduleWhichKey(_, kind, buffer)
     if not Rc.whichKeyEnabled() then
       return
     end
@@ -208,7 +209,7 @@ function M.make(getCtx, buf, win)
     end, Rc.whichKeyDelayMs())
   end
 
-  function ui:showExpandHints(positions)
+  function ui.showExpandHints(_, positions)
     for i, off in ipairs(positions) do
       if i > 9 then
         break
@@ -222,18 +223,18 @@ function M.make(getCtx, buf, win)
     end
   end
 
-  function ui:clearExpandHints()
-    self:repaintSelection(getCtx().st)
+  function ui.clearExpandHints()
+    repaintSelection()
   end
 
-  function ui:showAvyMatches(ranges)
+  function ui.showAvyMatches(_, ranges)
     clearNs()
     for _, range in ipairs(ranges) do
       markRange(range, 'NeomeowMatch')
     end
   end
 
-  function ui:showAvyLabels(labels)
+  function ui.showAvyLabels(_, labels)
     clearNs()
     for _, pair in ipairs(labels) do
       local off, label = pair[1], pair[2]
@@ -246,16 +247,16 @@ function M.make(getCtx, buf, win)
     end
   end
 
-  function ui:clearAvy()
-    self:repaintSelection(getCtx().st)
+  function ui.clearAvy()
+    repaintSelection()
   end
 
-  function ui:setGrabHighlight(range)
+  function ui.setGrabHighlight(_, range)
     grabRange = range
-    self:repaintSelection(getCtx().st)
+    repaintSelection()
   end
 
-  function ui:modeChanged(st)
+  function ui.modeChanged(_, st)
     if st.mode == MeowMode.INSERT then
       if vim.api.nvim_get_mode().mode:sub(1, 1) ~= 'i' and vim.api.nvim_get_current_buf() == buf then
         vim.cmd('startinsert')
@@ -265,13 +266,13 @@ function M.make(getCtx, buf, win)
     vim.cmd('redrawstatus')
   end
 
-  function ui:refresh(st)
-    self:repaintSelection(st)
+  function ui.refresh(_, st)
+    repaintSelection()
     vim.b[buf].neomeow_mode = st.mode
     vim.cmd('redrawstatus')
   end
 
-  function ui:startTimer(ms, cb)
+  function ui.startTimer(_, ms, cb)
     timerSeq = timerSeq + 1
     local id = timerSeq
     timers[id] = vim.defer_fn(function()
@@ -281,7 +282,7 @@ function M.make(getCtx, buf, win)
     return id
   end
 
-  function ui:cancelTimer(id)
+  function ui.cancelTimer(_, id)
     local t = timers[id]
     if t ~= nil then
       t:stop()

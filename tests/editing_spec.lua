@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local Engine = require('neomeow.core.engine')
 local MeowMode = h.MeowMode
 
@@ -37,11 +38,7 @@ describe('EditingSpec', function()
     local s = h.freshSpec()
     s:given('word', '<caret>hello')
     s:whenKeys('i')
-    h.eq(
-      Engine.handleChar(s:ctx(), 'z'),
-      false,
-      'typed keys must reach the default handler in INSERT'
-    )
+    h.eq(Engine.handleChar(s:ctx(), 'z'), false, 'typed keys must reach the default handler in INSERT')
   end)
 
   it('given A then a line opens below and INSERT starts', function()
@@ -281,11 +278,7 @@ describe('EditingSpec', function()
     s:thenSelection('xa')
     s:whenKeys("'")
     s:thenSelection('xa')
-    h.eq(
-      math.min(s.editor.sels[1].anchor, s.editor.sels[1].active),
-      2,
-      'repeat replayed f+a from the new point'
-    )
+    h.eq(math.min(s.editor.sels[1].anchor, s.editor.sels[1].active), 2, 'repeat replayed f+a from the new point')
   end)
 
   it('given quote after finding a quote char then the find repeats', function()

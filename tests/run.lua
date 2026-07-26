@@ -18,38 +18,14 @@
 local source = debug.getinfo(1, 'S').source:sub(2)
 local root = vim.fn.fnamemodify(source, ':p:h:h')
 package.path = table.concat({
+  root .. '/?.lua',
   root .. '/lua/?.lua',
   root .. '/lua/?/init.lua',
   root .. '/tests/?.lua',
   package.path,
 }, ';')
 
-local suites = {}
-local current = nil
-
-function _G.describe(name, fn)
-  current = { name = name, passed = 0, failures = {} }
-  table.insert(suites, current)
-  fn()
-  current = nil
-end
-
-function _G.it(name, fn)
-  local ok, err = xpcall(fn, function(e)
-    return debug.traceback(tostring(e), 2)
-  end)
-  if ok then
-    current.passed = current.passed + 1
-  else
-    table.insert(current.failures, { name = name, err = err })
-  end
-end
-
-setmetatable(_G, {
-  __newindex = function(_, key)
-    error('attempt to create global variable: ' .. tostring(key), 2)
-  end,
-})
+local suite = require('tests.suite')
 
 local files = vim.fn.glob(root .. '/tests/*_spec.lua', false, true)
 table.sort(files)
@@ -59,7 +35,7 @@ end
 
 local totalPassed = 0
 local totalFailed = 0
-for _, s in ipairs(suites) do
+for _, s in ipairs(suite.results()) do
   totalPassed = totalPassed + s.passed
   totalFailed = totalFailed + #s.failures
   local mark = #s.failures == 0 and 'ok' or 'FAIL'

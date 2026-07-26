@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local SelType = h.SelType
 
 describe('MovementSpec', function()

@@ -71,7 +71,10 @@ check('yank pasted the killed text', vim.api.nvim_buf_get_lines(buf, 0, 1, false
 buf = freshBuf({ 'a', 'b', 'c', 'd' })
 feed(' 2j')
 ctx = require('neomeow.adapter').contextFor(buf)
-check('SPC 2 j moved to line index 2', require('neomeow.core.text').lineOfOffset(ctx.port:getText(), ctx.port:getSelections()[1].active) == 2)
+check(
+  'SPC 2 j moved to line index 2',
+  require('neomeow.core.text').lineOfOffset(ctx.port:getText(), ctx.port:getSelections()[1].active) == 2
+)
 
 buf = freshBuf({ 'foo bar' })
 feed('wcZAP<Esc>')

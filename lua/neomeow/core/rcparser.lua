@@ -264,50 +264,69 @@ local function parseRepeat(c, rest, err)
   end
 end
 
+local ACCEPTED_AND_IGNORED_COMMANDS = {
+  ['let'] = true,
+  ['cmap'] = true,
+  ['cnoremap'] = true,
+}
+
+local MAP_COMMANDS = {
+  ['map'] = true,
+  ['noremap'] = true,
+  ['nmap'] = true,
+  ['nnoremap'] = true,
+  ['mmap'] = true,
+  ['mnoremap'] = true,
+}
+
+local COMMENT_PREFIXES = { ['"'] = true, ['#'] = true }
+
+local WHICH_KEY_DESC_PATTERN = '^let%s+g:WhichKeyDesc[%w_]*%s*=%s*"(.+)"$'
+
+local function parseCommand(c, cmd, rest, err)
+  if ACCEPTED_AND_IGNORED_COMMANDS[cmd] then
+    return
+  end
+  if MAP_COMMANDS[cmd] then
+    parseMap(c, cmd, rest, err)
+  elseif cmd == 'set' then
+    parseSet(c, rest, err)
+  elseif cmd == 'desc' then
+    parseDescBody(c, rest, err)
+  elseif cmd == 'repeat' then
+    parseRepeat(c, rest, err)
+  else
+    err("unknown command '" .. cmd .. "'")
+  end
+end
+
+local function parseLine(c, line, err)
+  if line == '' or COMMENT_PREFIXES[line:sub(1, 1)] then
+    return
+  end
+  local whichKeyDesc = line:match(WHICH_KEY_DESC_PATTERN)
+  if whichKeyDesc ~= nil then
+    parseDescBody(c, whichKeyDesc, err)
+    return
+  end
+  local cut = commentStart(line)
+  if cut ~= nil then
+    line = line:sub(1, cut - 1):match('^(.-)%s*$')
+  end
+  if line == '' then
+    return
+  end
+  local cmd, rest = line:match('^(%S+)%s*(.*)$')
+  parseCommand(c, cmd, rest:match('^%s*(.-)%s*$'), err)
+end
+
 function M.parse(lines)
   local c = M.newConfig()
   for i, raw in ipairs(lines) do
-    local line = raw:match('^%s*(.-)%s*$')
     local function err(msg)
       table.insert(c.errors, 'line ' .. i .. ': ' .. msg)
     end
-
-    local skip = line == '' or line:sub(1, 1) == '"' or line:sub(1, 1) == '#'
-    if not skip then
-      local wk = line:match('^let%s+g:WhichKeyDesc[%w_]*%s*=%s*"(.+)"$')
-      if wk ~= nil then
-        parseDescBody(c, wk, err)
-      else
-        local cut = commentStart(line)
-        if cut ~= nil then
-          line = line:sub(1, cut - 1):match('^(.-)%s*$')
-        end
-        if line ~= '' then
-          local cmd, rest = line:match('^(%S+)%s*(.*)$')
-          rest = rest:match('^%s*(.-)%s*$')
-          if cmd == 'let' then
-          elseif cmd == 'cmap' or cmd == 'cnoremap' then
-          elseif cmd == 'set' then
-            parseSet(c, rest, err)
-          elseif cmd == 'desc' then
-            parseDescBody(c, rest, err)
-          elseif
-            cmd == 'map'
-            or cmd == 'noremap'
-            or cmd == 'nmap'
-            or cmd == 'nnoremap'
-            or cmd == 'mmap'
-            or cmd == 'mnoremap'
-          then
-            parseMap(c, cmd, rest, err)
-          elseif cmd == 'repeat' then
-            parseRepeat(c, rest, err)
-          else
-            err("unknown command '" .. cmd .. "'")
-          end
-        end
-      end
-    end
+    parseLine(c, raw:match('^%s*(.-)%s*$'), err)
   end
   return c
 end

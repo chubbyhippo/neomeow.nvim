@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local SelType = h.SelType
 
 describe('ThingsSpec', function()
@@ -68,23 +69,29 @@ describe('ThingsSpec', function()
     s:thenSelection('`hi there`')
   end)
 
-  it('given a triple double quoted string when comma g then inner drops all three quotes and dot g keeps them', function()
-    local s = h.freshSpec()
-    s:given('triple double', 'say """hi th<caret>ere""" now')
-    s:whenKeys(',g')
-    s:thenSelection('hi there')
-    s:whenKeys('.g')
-    s:thenSelection('"""hi there"""')
-  end)
+  it(
+    'given a triple double quoted string when comma g then inner drops all three quotes and dot g keeps them',
+    function()
+      local s = h.freshSpec()
+      s:given('triple double', 'say """hi th<caret>ere""" now')
+      s:whenKeys(',g')
+      s:thenSelection('hi there')
+      s:whenKeys('.g')
+      s:thenSelection('"""hi there"""')
+    end
+  )
 
-  it('given a triple single quoted string when comma g then inner drops all three quotes and dot g keeps them', function()
-    local s = h.freshSpec()
-    s:given('triple single', "say '''hi th<caret>ere''' now")
-    s:whenKeys(',g')
-    s:thenSelection('hi there')
-    s:whenKeys('.g')
-    s:thenSelection("'''hi there'''")
-  end)
+  it(
+    'given a triple single quoted string when comma g then inner drops all three quotes and dot g keeps them',
+    function()
+      local s = h.freshSpec()
+      s:given('triple single', "say '''hi th<caret>ere''' now")
+      s:whenKeys(',g')
+      s:thenSelection('hi there')
+      s:whenKeys('.g')
+      s:thenSelection("'''hi there'''")
+    end
+  )
 
   it('given a triple backtick fence when comma g then inner drops all three backticks and dot g keeps them', function()
     local s = h.freshSpec()

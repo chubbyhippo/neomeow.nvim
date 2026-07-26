@@ -17,8 +17,8 @@ binds no keys in code.
 
 ## Install
 
-With any plugin manager, or clone and run `./setup.sh` (it runs the test suite,
-then symlinks the repo into your Neovim pack path). Then, in `init.lua`:
+With any plugin manager, or clone and run `./setup.sh` (it runs the checks, then
+symlinks the repo into your Neovim pack path). Then, in `init.lua`:
 
 ```lua
 require('neomeow').setup()
@@ -143,9 +143,20 @@ Terminal, prompt, and quickfix buffers are left to Neovim.
 ## Development
 
 ```bash
-nvim -l tests/run.lua                       # the BDD suite
-nvim --headless -u NONE -i NONE -l tests/smoke.lua   # adapter wiring
+./scripts/check.sh   # formatting, lint, the BDD suite, adapter wiring
 ```
+
+That one command is the gate `./setup.sh` runs: `stylua --check` and `selene`
+over `lua plugin tests scripts`, `shellcheck` over the shell scripts, the
+generated-`default_rc` sync check, the BDD suite and the adapter smoke test.
+Every tool runs on its stock rules — there is no rule-config file and no
+baseline; `selene.toml`/`neovim.yml` only declare the Lua dialect and Neovim's
+`vim` global, and `.stylua.toml` only states the house format (2-space indent,
+single quotes). `mise.toml` pins Neovim, stylua, selene and shellcheck, and the
+script fetches them through mise when they are not on your PATH.
+`luacheck` also passes clean (`.luacheckrc` names the dialect and the same
+global) and is worth a run if you have it; it ships no binary release, so the
+gate does not make it a prerequisite.
 
 The behavior lives in `lua/neomeow/core/` behind a small host-port seam and is
 covered by a full BDD suite that runs headlessly in milliseconds; the Neovim

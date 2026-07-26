@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local Engine = require('neomeow.core.engine')
 local Rc = require('neomeow.core.rc')
 local MeowMode = h.MeowMode
@@ -84,11 +85,7 @@ describe('ModesKeypadSpec', function()
     )
     s:whenKeys('zz')
     s:thenMode(MeowMode.INSERT)
-    h.eqList(
-      s.ui.modes,
-      { MeowMode.INSERT, MeowMode.KEYPAD, MeowMode.INSERT },
-      "back to INSERT's bar cursor"
-    )
+    h.eqList(s.ui.modes, { MeowMode.INSERT, MeowMode.KEYPAD, MeowMode.INSERT }, "back to INSERT's bar cursor")
     s:thenCaretAt(1)
   end)
 

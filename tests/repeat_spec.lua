@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local Engine = require('neomeow.core.engine')
 local Rc = require('neomeow.core.rc')
 local RcState = require('neomeow.core.rcstate')
@@ -61,7 +62,11 @@ describe('RepeatSpec', function()
 
   it('given home rc repeat lines then they layer per key over the bundled group', function()
     h.freshSpec()
-    Rc.setForTest(Rc.parse(vim.split('repeat zoom , meow-prev\nrepeat zoom e <action>(application:toggle-header)', '\n', { plain = true })))
+    Rc.setForTest(
+      Rc.parse(
+        vim.split('repeat zoom , meow-prev\nrepeat zoom e <action>(application:toggle-header)', '\n', { plain = true })
+      )
+    )
     local g = (Rc.repeatGroups())['zoom']
     h.eq(g.map['i'].action, 'resize +2')
     h.eq(g.map[','].command, 'meow-prev')
@@ -202,17 +207,20 @@ describe('RepeatSpec', function()
     h.eq(Engine.repeatMap, nil)
   end)
 
-  it('given the bundled rc then SPC x z repeats the last command and bare z keeps repeating like Emacs C-x z', function()
-    local s = h.freshSpec()
-    s:given('delete run', '<caret>aaaaa')
-    s:whenKeys('d')
-    s:thenText('aaaa')
-    s:whenKeys(' xz')
-    s:thenText('aaa')
-    s:whenKeys('z')
-    s:thenText('aa')
-    s:whenKeys('z')
-    s:thenText('a')
-    s:thenMode(MeowMode.NORMAL)
-  end)
+  it(
+    'given the bundled rc then SPC x z repeats the last command and bare z keeps repeating like Emacs C-x z',
+    function()
+      local s = h.freshSpec()
+      s:given('delete run', '<caret>aaaaa')
+      s:whenKeys('d')
+      s:thenText('aaaa')
+      s:whenKeys(' xz')
+      s:thenText('aaa')
+      s:whenKeys('z')
+      s:thenText('aa')
+      s:whenKeys('z')
+      s:thenText('a')
+      s:thenMode(MeowMode.NORMAL)
+    end
+  )
 end)

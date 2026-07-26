@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local Rc = require('neomeow.core.rc')
 local RcState = require('neomeow.core.rcstate')
 local keypadRows = require('neomeow.core.whichkey').keypadRows
@@ -151,7 +152,15 @@ describe('RcSpec', function()
 
   it('given leader mappings and descriptions then the keypad table extends', function()
     h.freshSpec()
-    Rc.setForTest(Rc.parse(vim.split('map <leader>gd <action>(editor.action.revealDefinition)\ndesc <leader>g goto things', '\n', { plain = true })))
+    Rc.setForTest(
+      Rc.parse(
+        vim.split(
+          'map <leader>gd <action>(editor.action.revealDefinition)\ndesc <leader>g goto things',
+          '\n',
+          { plain = true }
+        )
+      )
+    )
     h.eq(Rc.cfg().keypad['gd'].action, 'editor.action.revealDefinition')
     h.eq(Rc.cfg().keypadDesc['g'], 'goto things')
     h.eq((Rc.keypad())['gd'].action, 'editor.action.revealDefinition')

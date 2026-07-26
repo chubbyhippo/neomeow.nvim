@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local twe = require('neomeow.core.toolwindowescape')
 local onEscape, reset, TIMEOUT_MS = twe.onEscape, twe.reset, twe.TIMEOUT_MS
 

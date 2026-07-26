@@ -9,19 +9,16 @@ local Rc = core.rc
 local state = core.state
 local text_ = core.text
 local MeowMode = state.MeowMode
+local suite = require('tests.suite')
 
 local M = {}
 
+M.describe = suite.describe
+M.it = suite.it
+
 local function eq(actual, expected, msg)
   if actual ~= expected then
-    error(
-      (msg or 'assertion failed')
-        .. ': expected '
-        .. vim.inspect(expected)
-        .. ', got '
-        .. vim.inspect(actual),
-      2
-    )
+    error((msg or 'assertion failed') .. ': expected ' .. vim.inspect(expected) .. ', got ' .. vim.inspect(actual), 2)
   end
 end
 M.eq = eq
@@ -51,14 +48,7 @@ local function eqList(actual, expected, msg)
     end
   end
   if not same then
-    error(
-      (msg or 'list mismatch')
-        .. ': expected '
-        .. vim.inspect(expected)
-        .. ', got '
-        .. vim.inspect(actual),
-      2
-    )
+    error((msg or 'list mismatch') .. ': expected ' .. vim.inspect(expected) .. ', got ' .. vim.inspect(actual), 2)
   end
 end
 M.eqList = eqList
@@ -162,9 +152,9 @@ function FakeEditor:undo()
   self.undoCount = self.undoCount + 1
 end
 
-function FakeEditor:closeEditor() end
+function FakeEditor.closeEditor() end
 
-function FakeEditor:symbolRangeAt()
+function FakeEditor.symbolRangeAt()
   return nil
 end
 
@@ -214,8 +204,8 @@ function FakeUi:runCommand(id)
   table.insert(self.ran, id)
 end
 
-function FakeUi:scheduleWhichKey() end
-function FakeUi:hideWhichKey() end
+function FakeUi.scheduleWhichKey() end
+function FakeUi.hideWhichKey() end
 
 function FakeUi:showExpandHints(positions)
   self.expandHints = positions
@@ -246,7 +236,7 @@ function FakeUi:modeChanged(st)
   table.insert(self.modes, st.mode)
 end
 
-function FakeUi:refresh() end
+function FakeUi.refresh() end
 
 function FakeUi:startTimer(_ms, cb)
   self.timerSeq = self.timerSeq + 1
@@ -273,7 +263,7 @@ function Spec:given(_description, textWithCaret)
   self.st = state.newState()
 end
 
-function Spec:givenRc(text)
+function Spec.givenRc(_, text)
   Rc.setForTest(Rc.parse(vim.split(text, '\n', { plain = true })))
 end
 

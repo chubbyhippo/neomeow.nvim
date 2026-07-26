@@ -6,27 +6,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$here"
 
-nvim_cmd=""
-if command -v nvim >/dev/null 2>&1; then
-  nvim_cmd="nvim"
-elif command -v mise >/dev/null 2>&1 && mise which nvim >/dev/null 2>&1; then
-  nvim_cmd="mise exec -- nvim"
-else
-  echo "error: neovim not found on PATH and not available via mise" >&2
-  echo "install Neovim 0.10+ (mise use neovim@latest, or your package manager)" >&2
-  exit 1
-fi
-
-echo "==> neovim: $($nvim_cmd --version | head -1)"
-
-echo "==> checking lua/neomeow/default_rc.lua is in sync with .neomeowrc"
-$nvim_cmd -l scripts/check_default_rc.lua
-
-echo "==> running the BDD suite (tests/run.lua)"
-$nvim_cmd -l tests/run.lua
-
-echo "==> running the adapter smoke test (tests/smoke.lua)"
-$nvim_cmd --headless -u NONE -i NONE -l tests/smoke.lua
+bash scripts/check.sh
 
 data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nvim"
 dest="$data_dir/site/pack/neomeow/start/neomeow.nvim"

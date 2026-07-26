@@ -3,6 +3,7 @@
 -- (see LICENSE for the full GPL-3.0-or-later text)
 
 local h = require('tests.helpers')
+local describe, it = h.describe, h.it
 local SelType = h.SelType
 
 describe('EmacsMotionSpec', function()
@@ -246,10 +247,7 @@ describe('EmacsMotionSpec', function()
 
   it('given a count when beginning-of-buffer then the caret lands at the next line start past that tenth', function()
     local s = h.freshSpec()
-    s:given(
-      'five ten-char lines',
-      '<caret>0123456789\n0123456789\n0123456789\n0123456789\n0123456789'
-    )
+    s:given('five ten-char lines', '<caret>0123456789\n0123456789\n0123456789\n0123456789\n0123456789')
     s:whenKeys('3')
     s:whenCommand('beginning-of-buffer')
     s:thenCaretAt(22)
@@ -258,24 +256,24 @@ describe('EmacsMotionSpec', function()
 
   it('given a count when end-of-buffer then the caret lands a tenth back at the next line start', function()
     local s = h.freshSpec()
-    s:given(
-      'five ten-char lines',
-      '<caret>0123456789\n0123456789\n0123456789\n0123456789\n0123456789'
-    )
+    s:given('five ten-char lines', '<caret>0123456789\n0123456789\n0123456789\n0123456789\n0123456789')
     s:whenKeys('3')
     s:whenCommand('end-of-buffer')
     s:thenCaretAt(44)
     s:thenNoSelection()
   end)
 
-  it('given a count landing on a line boundary when beginning-of-buffer then the caret lands one line past that tenth', function()
-    local s = h.freshSpec()
-    s:given('three two-char lines', '<caret>aa\naa\naa\n')
-    s:whenKeys('3')
-    s:whenCommand('beginning-of-buffer')
-    s:thenCaretAt(3)
-    s:thenNoSelection()
-  end)
+  it(
+    'given a count landing on a line boundary when beginning-of-buffer then the caret lands one line past that tenth',
+    function()
+      local s = h.freshSpec()
+      s:given('three two-char lines', '<caret>aa\naa\naa\n')
+      s:whenKeys('3')
+      s:whenCommand('beginning-of-buffer')
+      s:thenCaretAt(3)
+      s:thenNoSelection()
+    end
+  )
 
   it('given a long-short-long buffer then repeated next-line keeps the goal column across the short line', function()
     local s = h.freshSpec()
@@ -294,13 +292,16 @@ describe('EmacsMotionSpec', function()
     s:thenNoSelection()
   end)
 
-  it('given no selection when backward-paragraph then the caret lands on the empty line joining the paragraph start', function()
-    local s = h.freshSpec()
-    s:given('two paragraphs', 'aaa\n\nbb<caret>b')
-    s:whenCommand('backward-paragraph')
-    s:thenCaretAt(4)
-    s:thenNoSelection()
-  end)
+  it(
+    'given no selection when backward-paragraph then the caret lands on the empty line joining the paragraph start',
+    function()
+      local s = h.freshSpec()
+      s:given('two paragraphs', 'aaa\n\nbb<caret>b')
+      s:whenCommand('backward-paragraph')
+      s:thenCaretAt(4)
+      s:thenNoSelection()
+    end
+  )
 
   it('given a caret on a blank line when forward-paragraph then it crosses to the next paragraph end', function()
     local s = h.freshSpec()
@@ -318,21 +319,27 @@ describe('EmacsMotionSpec', function()
     s:thenNoSelection()
   end)
 
-  it('given a whitespace-only separator when backward-paragraph then the caret stops at the paragraph text start', function()
-    local s = h.freshSpec()
-    s:given('space-only separator line', 'aaa\n \nbb<caret>b')
-    s:whenCommand('backward-paragraph')
-    s:thenCaretAt(6)
-    s:thenNoSelection()
-  end)
+  it(
+    'given a whitespace-only separator when backward-paragraph then the caret stops at the paragraph text start',
+    function()
+      local s = h.freshSpec()
+      s:given('space-only separator line', 'aaa\n \nbb<caret>b')
+      s:whenCommand('backward-paragraph')
+      s:thenCaretAt(6)
+      s:thenNoSelection()
+    end
+  )
 
-  it('given consecutive empty lines when backward-paragraph then only the adjacent one joins the paragraph start', function()
-    local s = h.freshSpec()
-    s:given('two empty separator lines', 'aaa\n\n\nbb<caret>b')
-    s:whenCommand('backward-paragraph')
-    s:thenCaretAt(5)
-    s:thenNoSelection()
-  end)
+  it(
+    'given consecutive empty lines when backward-paragraph then only the adjacent one joins the paragraph start',
+    function()
+      local s = h.freshSpec()
+      s:given('two empty separator lines', 'aaa\n\n\nbb<caret>b')
+      s:whenCommand('backward-paragraph')
+      s:thenCaretAt(5)
+      s:thenNoSelection()
+    end
+  )
 
   it('given a count when forward-paragraph then the caret walks that many paragraph ends', function()
     local s = h.freshSpec()

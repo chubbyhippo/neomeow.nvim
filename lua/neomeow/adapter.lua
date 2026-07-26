@@ -96,7 +96,7 @@ end
 local function makePort(buf)
   local port = { sels = { { anchor = 0, active = 0 } } }
 
-  function port:getText()
+  function port.getText()
     return table.concat(bufLines(buf), '\n')
   end
 
@@ -123,7 +123,7 @@ local function makePort(buf)
     end
   end
 
-  function port:edit(edits)
+  function port.edit(_, edits)
     local ordered = {}
     for i, e in ipairs(edits) do
       ordered[i] = e
@@ -139,11 +139,11 @@ local function makePort(buf)
     end
   end
 
-  function port:isWritable()
+  function port.isWritable()
     return vim.bo[buf].modifiable and not vim.bo[buf].readonly
   end
 
-  function port:visibleLineRange()
+  function port.visibleLineRange()
     local win = vim.fn.bufwinid(buf)
     if win == -1 then
       return nil
@@ -153,15 +153,15 @@ local function makePort(buf)
     return { first = first, last = last }
   end
 
-  function port:undo()
+  function port.undo()
     vim.cmd('silent! undo')
   end
 
-  function port:closeEditor()
+  function port.closeEditor()
     pcall(vim.cmd, 'close')
   end
 
-  function port:symbolRangeAt()
+  function port.symbolRangeAt()
     return nil
   end
 
@@ -254,7 +254,7 @@ function M.attach(buf)
   local ctx
   local ui = Uimod.make(function()
     return ctx
-  end, buf, vim.fn.bufwinid(buf))
+  end, buf)
   ctx = { port = port, clipboard = makeClipboard(), ui = ui, rx = makeRx(), st = st }
   contexts[buf] = ctx
 
