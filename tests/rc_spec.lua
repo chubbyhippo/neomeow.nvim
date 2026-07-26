@@ -234,7 +234,7 @@ describe('RcSpec', function()
 
   it('overlay colors layer user over the bundled default', function()
     h.freshSpec()
-    h.eq(Rc.overlayColor(), '#e52b50')
+    h.eq(Rc.overlayColor(), '#2ecc71')
     h.eq(Rc.grabColor(), nil)
     Rc.setForTest(Rc.parse(vim.split('set overlay-color=#010203\nset grab-color=#040506', '\n', { plain = true })))
     h.eq(Rc.overlayColor(), '#010203')

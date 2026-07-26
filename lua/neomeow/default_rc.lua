@@ -45,7 +45,7 @@ set timeoutlen=300
 " themes. The two label colors sit at their defaults; the expand-hint badge
 " keeps its built-in color and the grab highlight follows the DiffAdd group
 " unless you pin one here.
-set overlay-color=#E52B50
+set overlay-color=#2ECC71
 set overlay-text-color=#ffffff
 " set expand-hint-color=#2b5db2
 " set grab-color=#cde8cd
