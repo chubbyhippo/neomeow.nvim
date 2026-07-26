@@ -25,6 +25,7 @@ local Motions = require('neomeow.core.motions')
 local Structures = require('neomeow.core.structures')
 local Keypad = require('neomeow.core.keypad')
 local Avy = require('neomeow.core.avy')
+local Sel = require('neomeow.core.selections')
 
 local M = {}
 
@@ -254,9 +255,8 @@ function M.escapeKey(ctx)
     return true
   end
   local sels = ctx.port:getSelections()
-  if #sels > 1 then
-    local p = sels[1]
-    ctx.port:setSelections({ { anchor = p.active, active = p.active } })
+  if #sels > 1 or Sel.hasSelection(sels[1]) then
+    Sel.cancelAll(ctx)
     ctx.ui:refresh(st)
     return true
   end

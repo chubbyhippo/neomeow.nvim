@@ -124,7 +124,7 @@ function M.cancel(ctx)
   M.resetSelectionMemory(ctx.st)
 end
 
-local function cancelAll(ctx)
+function M.cancelAll(ctx)
   local sels = ctx.port:getSelections()
   if #sels > 1 then
     ctx.port:setSelections({ sels[1] })
@@ -212,7 +212,7 @@ end
 
 M.commands = {
   ['meow-reverse'] = reverse,
-  ['meow-cancel-selection'] = cancelAll,
+  ['meow-cancel-selection'] = M.cancelAll,
   ['meow-pop-selection'] = pop,
 }
 for n = 0, 9 do
