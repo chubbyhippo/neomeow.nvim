@@ -81,7 +81,7 @@ describe('RepeatSpec', function()
     h.eq(g.map['i'].action, 'resize +2')
   end)
 
-  it('the bundled default neomeowrc declares the init el repeat groups', function()
+  it('the bundled rc declares the init el repeat groups', function()
     h.freshSpec()
     local d = Rc.defaults().repeatGroups
     h.ok(sameSet(d['zoom'].order, { 'i', '=', 'o', '-', 'u', '0' }))

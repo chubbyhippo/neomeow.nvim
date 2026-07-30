@@ -251,7 +251,7 @@ describe('RcSpec', function()
     h.eqList(c.errors, {})
   end)
 
-  it('the bundled default neomeowrc defines the whole keymap', function()
+  it('the bundled rc defines the whole keymap', function()
     h.freshSpec()
     local d = Rc.defaults()
     h.eqList(d.errors, {}, 'bundled default must parse clean')
