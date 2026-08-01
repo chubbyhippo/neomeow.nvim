@@ -240,6 +240,7 @@ function M.escapeKey(ctx)
     ctx.ui:refresh(st)
     return true
   end
+  local hadTransient = st.pending ~= nil or M.repeatMap ~= nil
   st.pending = nil
   M.repeatMap = nil
   ctx.ui:hideWhichKey()
@@ -260,7 +261,7 @@ function M.escapeKey(ctx)
     ctx.ui:refresh(st)
     return true
   end
-  return false
+  return hadTransient
 end
 
 registry.register({

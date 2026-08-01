@@ -22,6 +22,8 @@ local MeowMode = require('neomeow.core.state').MeowMode
 
 local ns = vim.api.nvim_create_namespace('neomeow')
 
+local SCROLL_KEYS = { center = 'zz', top = 'zt', bottom = 'zb' }
+
 local M = {}
 
 local function setHighlights()
@@ -92,6 +94,16 @@ function M.make(getCtx, buf)
       local hi = Sel.hi(sel)
       markRange({ start = lo, stop = hi }, 'NeomeowSelection')
     end
+  end
+
+  function ui.revealCaret(_, at)
+    local win = vim.fn.bufwinid(buf)
+    if win == -1 then
+      return
+    end
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! ' .. SCROLL_KEYS[at])
+    end)
   end
 
   function ui.hint(_, text)

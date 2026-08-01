@@ -16,6 +16,7 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 local registry = require('neomeow.core.registry')
+local Chord = require('neomeow.core.chord')
 
 local M = {}
 
@@ -27,6 +28,10 @@ function M.newConfig()
     keypadOrder = {},
     keypadDesc = {},
     keypadDescOrder = {},
+    resizes = {},
+    resizeOrder = {},
+    chords = {},
+    chordOrder = {},
     repeatGroups = {},
     repeatOrder = {},
     whichKey = nil,
@@ -187,6 +192,47 @@ local function parseDescBody(c, body, err)
   orderedSet(c.keypadDesc, c.keypadDescOrder, seq, desc)
 end
 
+local function parseChord(c, cmd, rest, err)
+  local split = math.max((rest:find('%s[^%s]*$')) or 0, 0)
+  if split <= 1 then
+    err(cmd .. ' needs a chord and a target')
+    return
+  end
+  local spelling = rest:sub(1, split - 1):match('^%s*(.-)%s*$')
+  local chord = Chord.parse(spelling)
+  if chord == nil then
+    err('not a chord (needs Ctrl or Alt and one key): ' .. spelling)
+    return
+  end
+  local rhs = rest:sub(split + 1):match('^%s*(.-)%s*$')
+  local binding = parseTarget(rhs, cmd == 'cmap', cmd .. ' ' .. rest, err)
+  if binding == nil then
+    return
+  end
+  orderedSet(c.chords, c.chordOrder, Chord.spelling(chord), binding)
+end
+
+local function parseResizeKey(c, cmd, rest, err)
+  local lhs, rhs = rest:match('^(%S+)%s+(.*)$')
+  if lhs == nil then
+    err(cmd .. ' needs a key and a target')
+    return
+  end
+  local key = parseKeys(lhs, err)
+  if key == nil then
+    return
+  end
+  if #key ~= 1 then
+    err('resize key must be a single printable key: ' .. lhs)
+    return
+  end
+  local binding = parseTarget(rhs:match('^%s*(.-)%s*$'), cmd == 'resizemap', cmd .. ' ' .. rest, err)
+  if binding == nil then
+    return
+  end
+  orderedSet(c.resizes, c.resizeOrder, key, binding)
+end
+
 local function parseMap(c, cmd, rest, err)
   local lhs, rhs = rest:match('^(%S+)%s+(.*)$')
   if lhs == nil then
@@ -266,8 +312,6 @@ end
 
 local ACCEPTED_AND_IGNORED_COMMANDS = {
   ['let'] = true,
-  ['cmap'] = true,
-  ['cnoremap'] = true,
 }
 
 local MAP_COMMANDS = {
@@ -289,6 +333,10 @@ local function parseCommand(c, cmd, rest, err)
   end
   if MAP_COMMANDS[cmd] then
     parseMap(c, cmd, rest, err)
+  elseif cmd == 'cmap' or cmd == 'cnoremap' then
+    parseChord(c, cmd, rest, err)
+  elseif cmd == 'resizemap' or cmd == 'resizenoremap' then
+    parseResizeKey(c, cmd, rest, err)
   elseif cmd == 'set' then
     parseSet(c, rest, err)
   elseif cmd == 'desc' then

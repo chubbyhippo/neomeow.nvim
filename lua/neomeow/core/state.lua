@@ -71,6 +71,7 @@ function M.newState()
     goalColumn = nil,
 
     lastCommand = nil,
+    recenterPhase = 0,
 
     grab = nil,
 

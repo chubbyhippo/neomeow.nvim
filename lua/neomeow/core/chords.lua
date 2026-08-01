@@ -15,52 +15,38 @@
 --
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
-local Avy = require('neomeow.core.avy')
+local Chord = require('neomeow.core.chord')
+local Rc = require('neomeow.core.rc')
+local MeowMode = require('neomeow.core.state').MeowMode
 
 local M = {}
 
-M.LABEL_THRESHOLD = 2
-
-M.Plan = {
-  None = 'none',
-  Other = 'other',
-  Labels = 'labels',
-}
-
-function M.plan(windowCount)
-  if windowCount <= 1 then
-    return M.Plan.None
-  end
-  if windowCount <= M.LABEL_THRESHOLD then
-    return M.Plan.Other
-  end
-  return M.Plan.Labels
+function M.takesChords(mode)
+  return mode == MeowMode.NORMAL or mode == MeowMode.MOTION
 end
 
-function M.labels(windowCount)
-  return Avy.labelsFor(windowCount)
+function M.bindingFor(chord)
+  if chord == nil then
+    return nil
+  end
+  local map = Rc.chordBindings()
+  return map[Chord.spelling(chord)]
 end
 
-function M.matches(labelList, input)
-  return Avy.labelsMatching(labelList, input)
+function M.claims(mode, chord)
+  return M.takesChords(mode) and M.bindingFor(chord) ~= nil
 end
 
-function M.ordered(candidates)
-  local sorted = {}
-  for i, c in ipairs(candidates) do
-    sorted[i] = c
+function M.dispatch(ctx, chord)
+  if not M.claims(ctx.st.mode, chord) then
+    return false
   end
-  table.sort(sorted, function(a, b)
-    if a.x ~= b.x then
-      return a.x < b.x
-    end
-    return a.y < b.y
-  end)
-  local out = {}
-  for i, c in ipairs(sorted) do
-    out[i] = c.item
+  local binding = M.bindingFor(chord)
+  if binding == nil then
+    return false
   end
-  return out
+  require('neomeow.core.engine').runBinding(ctx, binding)
+  return true
 end
 
 return M

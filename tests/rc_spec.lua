@@ -173,13 +173,15 @@ describe('RcSpec', function()
     h.eqList(c.errors, {})
   end)
 
-  it('given a cmap or cnoremap line then the rc loads it without error', function()
+  it('given a cmap or cnoremap line then the rc binds the chord', function()
     local c = Rc.parse({
       'cmap <C-h> backward-char',
       'cnoremap <C-x> <action>(SomeChord)',
       'nmap Z ,b',
     })
     h.eqList(c.errors, {})
+    h.eq(c.chords['C-h'].command, 'backward-char')
+    h.eq(c.chords['C-x'].action, 'SomeChord')
     h.eq(c.normal['Z'].keys, ',b')
   end)
 

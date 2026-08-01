@@ -94,6 +94,32 @@ function M.keypadDescs()
   )
 end
 
+function M.chordBindings()
+  local map, order =
+    mergedOrdered(defaultConfig.chords, defaultConfig.chordOrder, userConfig.chords, userConfig.chordOrder)
+  local kept = {}
+  for _, spelling in ipairs(order) do
+    if map[spelling].command == 'ignore' then
+      map[spelling] = nil
+    else
+      table.insert(kept, spelling)
+    end
+  end
+  return map, kept
+end
+
+function M.resizeBindings()
+  local map, order =
+    mergedOrdered(defaultConfig.resizes, defaultConfig.resizeOrder, userConfig.resizes, userConfig.resizeOrder)
+  local kept = {}
+  for _, key in ipairs(order) do
+    if map[key].command ~= 'ignore' then
+      table.insert(kept, key)
+    end
+  end
+  return map, kept
+end
+
 function M.repeatGroups()
   local merged = {}
   local order = {}

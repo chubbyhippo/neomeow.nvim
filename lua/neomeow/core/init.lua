@@ -24,7 +24,7 @@ registry.register(require('neomeow.core.structures').commands)
 registry.register(require('neomeow.core.grab').commands)
 registry.register(require('neomeow.core.edits').commands)
 registry.register(require('neomeow.core.avy').commands)
-registry.register(require('neomeow.core.acewindow').commands)
+registry.register(require('neomeow.core.view').commands)
 require('neomeow.core.engine')
 
 return {
@@ -40,6 +40,8 @@ return {
   avy = require('neomeow.core.avy'),
   treemeow = require('neomeow.core.treemeow'),
   toolwindowescape = require('neomeow.core.toolwindowescape'),
+  resize = require('neomeow.core.resize'),
+  view = require('neomeow.core.view'),
   rcstate = require('neomeow.core.rcstate'),
   text = require('neomeow.core.text'),
 }

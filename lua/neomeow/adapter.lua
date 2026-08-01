@@ -20,7 +20,17 @@ local Engine = core.engine
 local Rc = core.rc
 local attachpolicy = core.attachpolicy
 local newState = core.state.newState
+local Chord = require('neomeow.core.chord')
+local Chords = require('neomeow.core.chords')
 local Uimod = require('neomeow.ui')
+
+local NVIM_KEY_NAMES = {
+  [' '] = 'Space',
+  ['\t'] = 'Tab',
+  ['\\'] = 'Bslash',
+  ['<'] = 'lt',
+  ['|'] = 'Bar',
+}
 
 local M = {}
 
@@ -239,6 +249,43 @@ local function setNormalKeymaps(buf)
   end
 end
 
+local function nvimChordKey(spelling)
+  local chord = Chord.parse(spelling)
+  if chord == nil then
+    return nil
+  end
+  local name = NVIM_KEY_NAMES[chord.key] or chord.key
+  local prefix = (chord.ctrl and 'C-' or '') .. (chord.alt and 'M-' or '') .. (chord.shift and 'S-' or '')
+  return '<' .. prefix .. name .. '>'
+end
+
+local function chordKeymaps()
+  local _, order = Rc.chordBindings()
+  local out = {}
+  for _, spelling in ipairs(order) do
+    local lhs = nvimChordKey(spelling)
+    if lhs ~= nil then
+      out[lhs] = spelling
+    end
+  end
+  return out
+end
+
+local function setChordKeymaps(buf)
+  for lhs, spelling in pairs(chordKeymaps()) do
+    vim.keymap.set('n', lhs, function()
+      local ctx = contexts[buf]
+      if ctx == nil then
+        return
+      end
+      syncCursorToState(ctx, buf)
+      if not Chords.dispatch(ctx, Chord.parse(spelling)) then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(lhs, true, false, true), 'n', false)
+      end
+    end, { buffer = buf, nowait = true, desc = 'neomeow chord ' .. spelling })
+  end
+end
+
 function M.attach(buf)
   if contexts[buf] ~= nil then
     return contexts[buf]
@@ -263,10 +310,16 @@ function M.attach(buf)
   vim.b[buf].neomeow_mode = st.mode
 
   setNormalKeymaps(buf)
+  setChordKeymaps(buf)
 
   vim.keymap.set('n', '<Esc>', function()
     Engine.escapeKey(ctx)
   end, { buffer = buf, nowait = true, desc = 'neomeow escape' })
+
+  vim.keymap.set('i', '<M-;>', function()
+    Engine.enterKeypad(ctx)
+    vim.cmd('stopinsert')
+  end, { buffer = buf, nowait = true, desc = 'neomeow keypad from INSERT' })
 
   local grp = vim.api.nvim_create_augroup('neomeow-buf-' .. buf, { clear = true })
   vim.api.nvim_create_autocmd('InsertLeave', {
@@ -302,7 +355,11 @@ function M.reloadUserRc(lines)
       for key in pairs(boundKeys()) do
         pcall(vim.keymap.del, 'n', key, { buffer = buf })
       end
+      for lhs in pairs(chordKeymaps()) do
+        pcall(vim.keymap.del, 'n', lhs, { buffer = buf })
+      end
       setNormalKeymaps(buf)
+      setChordKeymaps(buf)
     end
   end
 end

@@ -53,6 +53,13 @@ local function eqList(actual, expected, msg)
 end
 M.eqList = eqList
 
+local function eqTable(actual, expected, msg)
+  if not vim.deep_equal(actual, expected) then
+    error((msg or 'table mismatch') .. ': expected ' .. vim.inspect(expected) .. ', got ' .. vim.inspect(actual), 2)
+  end
+end
+M.eqTable = eqTable
+
 local function makeRx()
   return {
     allMatches = function(pattern, text)
@@ -183,6 +190,7 @@ local function newFakeUi()
     avyMatches = {},
     avyLabels = {},
     grab = nil,
+    revealed = {},
     timerSeq = 0,
     timers = {},
   }, FakeUi)
@@ -230,6 +238,10 @@ end
 
 function FakeUi:setGrabHighlight(range)
   self.grab = range
+end
+
+function FakeUi:revealCaret(at)
+  table.insert(self.revealed, at)
 end
 
 function FakeUi:modeChanged(st)

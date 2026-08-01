@@ -90,6 +90,35 @@ local function labels(node)
   return out
 end
 
+function M.labelsFor(count)
+  if count <= 0 then
+    return {}
+  end
+  local indices = {}
+  for i = 0, count - 1 do
+    indices[i + 1] = i
+  end
+  local indexed = labels(tree(indices))
+  table.sort(indexed, function(a, b)
+    return a[1] < b[1]
+  end)
+  local out = {}
+  for i, pair in ipairs(indexed) do
+    out[i] = pair[2]
+  end
+  return out
+end
+
+function M.labelsMatching(labelList, input)
+  local out = {}
+  for _, label in ipairs(labelList) do
+    if label:sub(1, #input) == input then
+      table.insert(out, label)
+    end
+  end
+  return out
+end
+
 local function newSession(gotoLine)
   return { phase = 'collecting', input = '', node = nil, timer = nil, gotoLine = gotoLine }
 end

@@ -4,10 +4,18 @@
 
 local h = require('tests.helpers')
 local describe, it = h.describe, h.it
+local Engine = require('neomeow.core.engine')
 local twe = require('neomeow.core.toolwindowescape')
 local onEscape, reset, TIMEOUT_MS = twe.onEscape, twe.reset, twe.TIMEOUT_MS
+local MeowMode = h.MeowMode
 
 describe('ToolWindowEscapeSpec', function()
+  local navRc = table.concat({
+    'map <leader>tn meow-next',
+    'repeat nav . meow-next',
+    'repeat nav , meow-prev',
+  }, '\n')
+
   it('given a single escape in a tool window then it does not jump', function()
     reset()
     h.eq(onEscape('terminal', 1000), false)
@@ -45,5 +53,48 @@ describe('ToolWindowEscapeSpec', function()
     onEscape('terminal', 1000)
     h.eq(onEscape(nil, 1100), false)
     h.eq(onEscape('terminal', 1200), false)
+  end)
+
+  it("given KEYPAD then escape is meow's and exits the keypad", function()
+    local s = h.freshSpec()
+    s:given('keypad escape', '<caret>hello')
+    s:whenKeys(' ')
+    s:thenMode(MeowMode.KEYPAD)
+    h.eq(s:pressEsc(), true)
+    s:thenMode(MeowMode.NORMAL)
+  end)
+
+  it("given an active selection then escape is meow's and clears it", function()
+    local s = h.freshSpec()
+    s:given('selection escape', '<caret>hello world')
+    s:whenKeys('w')
+    h.neq(s:selectedText(), nil)
+    h.eq(s:pressEsc(), true)
+    h.eq(s:selectedText(), nil)
+  end)
+
+  it("given an armed repeat run then escape is meow's and ends it", function()
+    local s = h.freshSpec()
+    s:given('four lines', '<caret>one\ntwo\nthree\nfour')
+    s:givenRc(navRc)
+    s:whenKeys(' tn')
+    h.neq(Engine.repeatMap, nil)
+    h.eq(s:pressEsc(), true)
+    h.eq(Engine.repeatMap, nil)
+  end)
+
+  it("given NORMAL with nothing to cancel then escape is not meow's", function()
+    local s = h.freshSpec()
+    s:given('idle escape', '<caret>hello')
+    h.eq(s:pressEsc(), false)
+  end)
+
+  it("given INSERT then escape is meow's and returns to NORMAL", function()
+    local s = h.freshSpec()
+    s:given('insert escape', '<caret>hello')
+    s:whenKeys('i')
+    s:thenMode(MeowMode.INSERT)
+    h.eq(s:pressEsc(), true)
+    s:thenMode(MeowMode.NORMAL)
   end)
 end)

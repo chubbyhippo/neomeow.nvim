@@ -30,6 +30,8 @@ return [[
 "                                     editors stay NORMAL)
 "   map <leader><seq> <target>        keypad (SPC) entry
 "   desc <leader><seq> <text>         which-key label for an entry or a group
+"   resizemap <key> <target>          a key inside the SPC w r resize session
+"   cmap <chord> <target>             an Emacs chord (C-f, M-<, control F)
 "   set timeoutlen=300                which-key popup delay in ms
 "   set nowhich-key                   turn the which-key popup off
 "   set overlay-color=#RRGGBB         avy/ace label background
@@ -160,7 +162,8 @@ map <leader>xb <action>(browse oldfiles)
 map <leader>xk <action>(bdelete)
 map <leader>xe <action>(normal! @@)
 map <leader>xq <action>(set readonly!)
-map <leader>xo ace-window
+map <leader>xo <action>(NeomeowAceWindow)
+desc <leader>xo ace-window
 map <leader>xu <action>(undolist)
 map <leader>xc <action>(confirm qall)
 map <leader>x0 <action>(close)
@@ -218,9 +221,12 @@ map <leader>ws <action>(split)
 map <leader>wd <action>(close)
 map <leader>wD <action>(only)
 map <leader>wm <action>(only)
-map <leader>ww ace-window
-map <leader>wW ace-swap-window
-map <leader>wr ace-resize
+map <leader>ww <action>(NeomeowAceWindow)
+desc <leader>ww ace-window
+map <leader>wW <action>(NeomeowAceSwapWindow)
+desc <leader>wW ace-swap-window
+map <leader>wr <action>(NeomeowAceResize)
+desc <leader>wr ace-resize
 " n/p (aliases . and ,): cycle buffers (C-x <right>/<left>); the tab
 " repeat group below keeps a bare n/p/./, walking afterwards
 map <leader>wn <action>(bnext)
@@ -414,4 +420,83 @@ repeat tab , <action>(bprevious)
 
 " Emacs C-x z: after repeat (SPC x z or '), bare z keeps repeating
 repeat replay z repeat
+
+" ============================================================================
+" Ace resize — the keys inside the SPC w r session
+" ----------------------------------------------------------------------------
+" SPC w r opens a resize session that stays open until ESC, so one press can
+" nudge the layout many times. ideameow labels every splitter first; Neovim
+" resizes the window that already has focus — pick a different one with
+" SPC w w first. Rebind any key here, or map one to `ignore` to drop it.
+" ============================================================================
+resizemap l <action>(vertical resize +4)
+resizemap h <action>(vertical resize -4)
+resizemap k <action>(resize +2)
+resizemap j <action>(resize -2)
+resizemap = <action>(wincmd =)
+resizemap m <action>(only)
+
+" ============================================================================
+" The stock-Emacs chord layer — outside INSERT only
+" ----------------------------------------------------------------------------
+" Every chord here is a real Emacs key, bound to the meow command that IS the
+" Emacs one. They fire in NORMAL and MOTION, never in INSERT, so Neovim keeps
+" C-d / C-k / C-w / C-y while you type. Motions extend a live selection.
+" Either spelling works: the Emacs one (C-f, M-<) or the host one
+" (control F, alt shift COMMA).
+" An unbound chord stays Neovim's; to hand a bound one back, map it to
+" `ignore` — e.g. `cmap C-f ignore` restores the Neovim meaning.
+" ============================================================================
+
+" point motions (C-f C-b C-n C-p C-a C-e, M-f M-b M-a M-e)
+cmap C-f forward-char
+cmap C-b backward-char
+cmap C-n next-line
+cmap C-p previous-line
+cmap C-a move-beginning-of-line
+cmap C-e move-end-of-line
+cmap M-f forward-word
+cmap M-b backward-word
+cmap M-a backward-sentence
+cmap M-e forward-sentence
+
+" buffer + paragraph (M-< M-> M-{ M-})
+cmap M-< beginning-of-buffer
+cmap M-> end-of-buffer
+cmap M-{ backward-paragraph
+cmap M-} forward-paragraph
+
+" case + kill (M-u M-l M-c M-d)
+cmap M-u upcase-word
+cmap M-l downcase-word
+cmap M-c capitalize-word
+cmap M-d kill-word
+
+" stock-Emacs edit chords. Each maps onto the meow command that IS the Emacs
+" one (meow-semantics.md): meow-kill's no-selection fallback is meow-C-k, so
+" C-k kills the line and C-w the region through the same command; meow-save is
+" kill-ring-save; meow-cancel-selection is keyboard-quit; meow-delete is
+" delete-forward-char.
+cmap C-/ meow-undo
+cmap C-_ meow-undo
+cmap C-d meow-delete
+cmap C-k meow-kill
+cmap C-w meow-kill
+cmap M-w meow-save
+cmap C-y meow-yank
+cmap C-g meow-cancel-selection
+
+" stock-Emacs whitespace and line chords. M-^ is meow-join + kill: the ledger
+" records that killing the join selection IS delete-indentation, so it needs no
+" command of its own.
+" C-l recenter-top-bottom: a core command with Emacs' recenter-positions cycle
+" (center -> top -> bottom, restarting whenever the previous command differs).
+" The adapter runs Neovim's own zz / zt / zb for the three positions.
+cmap C-l recenter-top-bottom
+
+cmap M-m back-to-indentation
+cmap C-o open-line
+cmap M-\ delete-horizontal-space
+cmap M-SPC just-one-space
+cmap M-^ ms
 ]]
