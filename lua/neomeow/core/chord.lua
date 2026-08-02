@@ -155,9 +155,12 @@ function M.parse(text)
   return parsePrefixSpelling(rest)
 end
 
+function M.modifierPrefix(chord)
+  return (chord.ctrl and 'C-' or '') .. (chord.alt and 'M-' or '') .. (chord.shift and 'S-' or '')
+end
+
 function M.spelling(chord)
-  local prefix = (chord.ctrl and 'C-' or '') .. (chord.alt and 'M-' or '') .. (chord.shift and 'S-' or '')
-  return prefix .. chord.key
+  return M.modifierPrefix(chord) .. chord.key
 end
 
 function M.keyOf(text)

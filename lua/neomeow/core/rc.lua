@@ -94,30 +94,28 @@ function M.keypadDescs()
   )
 end
 
-function M.chordBindings()
-  local map, order =
-    mergedOrdered(defaultConfig.chords, defaultConfig.chordOrder, userConfig.chords, userConfig.chordOrder)
+local function prunedIgnores(map, order)
   local kept = {}
-  for _, spelling in ipairs(order) do
-    if map[spelling].command == 'ignore' then
-      map[spelling] = nil
+  for _, key in ipairs(order) do
+    if map[key].command == 'ignore' then
+      map[key] = nil
     else
-      table.insert(kept, spelling)
+      table.insert(kept, key)
     end
   end
   return map, kept
 end
 
+function M.chordBindings()
+  return prunedIgnores(
+    mergedOrdered(defaultConfig.chords, defaultConfig.chordOrder, userConfig.chords, userConfig.chordOrder)
+  )
+end
+
 function M.resizeBindings()
-  local map, order =
+  return prunedIgnores(
     mergedOrdered(defaultConfig.resizes, defaultConfig.resizeOrder, userConfig.resizes, userConfig.resizeOrder)
-  local kept = {}
-  for _, key in ipairs(order) do
-    if map[key].command ~= 'ignore' then
-      table.insert(kept, key)
-    end
-  end
-  return map, kept
+  )
 end
 
 function M.repeatGroups()
@@ -151,15 +149,7 @@ function M.repeatGroups()
   local prunedOrder = {}
   for _, group in ipairs(order) do
     local members = merged[group]
-    local keptOrder = {}
-    for _, key in ipairs(members.order) do
-      local binding = members.map[key]
-      if binding.command == 'ignore' then
-        members.map[key] = nil
-      else
-        table.insert(keptOrder, key)
-      end
-    end
+    local _, keptOrder = prunedIgnores(members.map, members.order)
     members.order = keptOrder
     if #keptOrder == 0 then
       merged[group] = nil

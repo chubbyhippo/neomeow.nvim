@@ -130,8 +130,8 @@ local function visibleLines(ctx)
     return { first = 0, last = total - 1 }
   end
   return {
-    first = math.min(math.max(visible.first, 0), total - 1),
-    last = math.min(math.max(visible.last, 0), total - 1),
+    first = text_.clamp(visible.first, 0, total - 1),
+    last = text_.clamp(visible.last, 0, total - 1),
   }
 end
 

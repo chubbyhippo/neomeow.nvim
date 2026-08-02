@@ -255,8 +255,7 @@ local function nvimChordKey(spelling)
     return nil
   end
   local name = NVIM_KEY_NAMES[chord.key] or chord.key
-  local prefix = (chord.ctrl and 'C-' or '') .. (chord.alt and 'M-' or '') .. (chord.shift and 'S-' or '')
-  return '<' .. prefix .. name .. '>'
+  return '<' .. Chord.modifierPrefix(chord) .. name .. '>'
 end
 
 local function chordKeymaps()

@@ -89,22 +89,10 @@ local function deleteSelectionOrCharForward(text, selStart, selEnd)
   return { edit = nil, sel = { anchor = selStart, active = selStart } }
 end
 
-local function insert(ctx)
+local function enterInsertAt(ctx, atHigh)
   local moved = {}
   for i, sel in ipairs(ctx.port:getSelections()) do
-    local offset = Sel.selStart(sel)
-    moved[i] = { anchor = offset, active = offset }
-  end
-  ctx.port:setSelections(moved)
-  ctx.state.selType = SelType.NONE
-  Sel.resetSelectionMemory(ctx.state)
-  port_.setMode(ctx, MeowMode.INSERT)
-end
-
-local function append(ctx)
-  local moved = {}
-  for i, sel in ipairs(ctx.port:getSelections()) do
-    local offset = Sel.selEnd(sel)
+    local offset = atHigh and Sel.selEnd(sel) or Sel.selStart(sel)
     moved[i] = { anchor = offset, active = offset }
   end
   ctx.port:setSelections(moved)
@@ -517,8 +505,12 @@ local function undoInSelection(ctx)
 end
 
 M.commands = {
-  ['meow-insert'] = insert,
-  ['meow-append'] = append,
+  ['meow-insert'] = function(ctx)
+    enterInsertAt(ctx, false)
+  end,
+  ['meow-append'] = function(ctx)
+    enterInsertAt(ctx, true)
+  end,
   ['meow-open-above'] = openAbove,
   ['meow-open-below'] = openBelow,
   ['meow-change'] = change,

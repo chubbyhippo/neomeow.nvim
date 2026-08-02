@@ -28,13 +28,21 @@ local LIST_MOTIONS = {
   ['meow-right'] = 'neomeow.tree.expand',
 }
 
+local function motionBinding(char, noremap)
+  local binding = nil
+  if not noremap then
+    binding = Rc.cfg().motion[char]
+  end
+  if binding == nil then
+    binding = Rc.defaults().motion[char]
+  end
+  return binding
+end
+
 function M.boundChars()
   local out = {}
   local function consider(char)
-    local binding = Rc.cfg().motion[char]
-    if binding == nil then
-      binding = Rc.defaults().motion[char]
-    end
+    local binding = motionBinding(char, false)
     if binding ~= nil and binding.command ~= 'ignore' then
       out[char] = true
     end
@@ -51,13 +59,7 @@ end
 function M.dispatch(run, char, noremap, depth)
   noremap = noremap or false
   depth = depth or 0
-  local binding = nil
-  if not noremap then
-    binding = Rc.cfg().motion[char]
-  end
-  if binding == nil then
-    binding = Rc.defaults().motion[char]
-  end
+  local binding = motionBinding(char, noremap)
   if binding == nil then
     return
   end

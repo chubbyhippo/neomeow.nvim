@@ -74,6 +74,14 @@ neomeow.lua settings: return { rc = { 'nmap <key> <action>(command)',
   file overrides them key by key
 ]]):match('^%s*(.-)%s*$')
 
+local function spaced(seq)
+  local parts = {}
+  for i = 1, #seq do
+    table.insert(parts, seq:sub(i, i))
+  end
+  return table.concat(parts, ' ')
+end
+
 local function describe(ctx, prefix)
   local descsMap = Rc.keypadDescs()
   local map, order = Rc.keypad()
@@ -92,7 +100,7 @@ local function describe(ctx, prefix)
     if descsMap[seq] ~= nil then
       desc = '  (' .. descsMap[seq] .. ')'
     end
-    table.insert(lines, 'SPC ' .. seq:gsub('.', '%0 '):sub(1, -2) .. '  ->  ' .. target .. desc)
+    table.insert(lines, 'SPC ' .. spaced(seq) .. '  ->  ' .. target .. desc)
   end
   local body = table.concat(lines, '\n')
   if body == '' then
@@ -151,7 +159,7 @@ function M.key(ctx, char)
   end
   if not hasPrefix then
     M.exit(ctx)
-    ctx.ui:hint('SPC ' .. cur:gsub('.', '%0 '):sub(1, -2) .. ' is undefined')
+    ctx.ui:hint('SPC ' .. spaced(cur) .. ' is undefined')
   else
     ctx.ui:scheduleWhichKey('keypad', cur)
   end
