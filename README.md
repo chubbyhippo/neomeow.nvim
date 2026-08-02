@@ -1,24 +1,23 @@
 # neomeow.nvim
 
 Native [meow](https://github.com/meow-edit/meow)-style modal editing for
-Neovim. neomeow parks every buffer in a **NORMAL** state where you *select
-first, then act* — mark a word, a line, a pair, a search match, then change,
-kill, or save it. It is not a Vim emulation and not built on Vim's operator
-grammar: it is meow's selection-driven model, keyboard-for-keyboard, running
-on Neovim's own buffers and windows.
+Neovim — every buffer parks in a **NORMAL** state where you select first, then
+act.
 
-The whole keymap — the QWERTY layout and the `SPC` keypad — lives in a bundled
-`.neomeowrc` and is fully rebindable from a small Lua settings file. The plugin
-binds no keys in code.
-
-## Requirements
-
-- Neovim 0.10+ (developed and tested on 0.12)
+| | |
+|---|---|
+| Model | meow's selection-driven model, keyboard-for-keyboard — not a Vim emulation, not built on Vim's operator grammar |
+| Runs on | Neovim's own buffers and windows |
+| Keymap | the QWERTY layout and the `SPC` keypad, in a bundled `.neomeowrc` |
+| Rebinding | a small Lua settings file; the plugin binds no keys in code |
+| Requires | Neovim 0.10+ (developed and tested on 0.12) |
 
 ## Install
 
-With any plugin manager, or clone and run `./setup.sh` (it runs the checks, then
-symlinks the repo into your Neovim pack path). Then, in `init.lua`:
+Any plugin manager, or clone and run `./setup.sh` — it runs the checks, then
+symlinks the repo into your Neovim pack path.
+
+`init.lua`:
 
 ```lua
 require('neomeow').setup()
@@ -30,7 +29,7 @@ lazy.nvim:
 { 'chubbyhippo/neomeow.nvim', config = function() require('neomeow').setup() end }
 ```
 
-`setup()` accepts options:
+`setup()` options:
 
 ```lua
 require('neomeow').setup({
@@ -43,7 +42,7 @@ require('neomeow').setup({
 
 ## The model in one screen
 
-Press `SPC ?` any time for the built-in cheatsheet.
+`SPC ?` opens this as the built-in cheatsheet.
 
 ```
 NORMAL — selection first, then act
@@ -65,21 +64,23 @@ NORMAL — selection first, then act
   Q / X    goto line   S   jump (avy)    q        close window
 ```
 
-`SPC` opens the keypad (Emacs-style prefixes): `SPC x` files/windows, `SPC c`
-commands, `SPC w` windows, `SPC m` meta, `SPC g` goto, `SPC s` search, and so
-on. `SPC c m` opens your settings file; `SPC c M` reloads it. A which-key popup
-lists the continuations after a short delay (`set nowhich-key` to disable).
-
-Selections render as a highlight; the block/bar cursor follows the mode
-natively. Grab a region with `G`, then select inside it (`w`, `x`, a search…)
-to drop a cursor on every match and edit them together — press `ESC` to finish.
+| Surface | Behavior |
+|---|---|
+| `SPC` keypad | Emacs-style prefixes — `SPC x` files/windows, `SPC c` commands, `SPC w` windows, `SPC m` meta, `SPC g` goto, `SPC s` search |
+| `SPC c m` / `SPC c M` | open / reload your settings file |
+| which-key | lists the continuations after a short delay; `set nowhich-key` disables it |
+| Selections | a highlight; the block/bar cursor follows the mode natively |
+| `G` then a selection inside it | drops a cursor on every match, edits them together; `ESC` finishes |
 
 ## Settings — `neomeow.lua`
 
-Your personal layer is a Lua file at `stdpath('config')/neomeow.lua` that
-returns `{ rc = { <lines> } }`. Each string is one rc line and overrides the
-bundled default entry by entry; everything you don't mention keeps its default.
-`SPC c m` creates it (seeded with a template) and opens it; `SPC c M` reloads.
+| Item | Value |
+|---|---|
+| Path | `stdpath('config')/neomeow.lua` |
+| Returns | `{ rc = { <lines> } }` — each string one rc line |
+| Precedence | overrides the bundled default entry by entry; anything unmentioned keeps its default |
+| `SPC c m` | creates it seeded with a template, and opens it |
+| `SPC c M` | reloads it |
 
 ```lua
 return {
@@ -92,7 +93,7 @@ return {
 }
 ```
 
-rc line grammar:
+### rc line grammar
 
 | Line | Meaning |
 |---|---|
@@ -106,15 +107,18 @@ rc line grammar:
 | `set timeoutlen=N` · `set nowhich-key` | which-key popup delay / off |
 | `set overlay-color=#RRGGBB` … | overlay / hint / grab colors (see below) |
 | `repeat <group> <key> <target>` | tap-to-continue run (see below) |
+| `<key> ignore` | disable the key |
 
-Bind a key to `ignore` to disable it. `<action>(…)` runs its body as a Neovim
-ex-command line (`<action>(vsplit)`, `<action>(lua vim.lsp.buf.hover())`,
-`<action>(Telescope find_files)`); list command names with `SPC i d`.
+| `<action>(…)` | Runs its body as a Neovim ex-command line |
+|---|---|
+| `<action>(vsplit)` | a plain ex command |
+| `<action>(lua vim.lsp.buf.hover())` | Lua |
+| `<action>(Telescope find_files)` | a plugin command |
+| `SPC i d` | lists the command names |
 
 ### Colors
 
-Four `set` lines recolor the overlays with `#RRGGBB` hex — one value applies
-in both light and dark backgrounds:
+One `#RRGGBB` per key, applied in both light and dark backgrounds.
 
 | Line | Colors |
 |---|---|
@@ -123,22 +127,32 @@ in both light and dark backgrounds:
 | `set expand-hint-color=#RRGGBB` | the `0`–`9` expand-hint badge |
 | `set grab-color=#RRGGBB` | the grab / beacon highlight |
 
-Leave a line out to keep the built-in default; the grab highlight then follows
-your colorscheme's `DiffAdd`. A malformed hex is reported like any other rc
-error and the color is left at its default.
+| Case | Result |
+|---|---|
+| Line left out | the built-in default — the grab highlight then follows your colorscheme's `DiffAdd` |
+| Malformed hex | reported like any other rc error; the color stays at its default |
 
 ### Repeat runs
 
-Some keypad entries start a tap-to-continue run (Emacs `repeat-mode`): after
-`SPC . e` keep tapping `.` / `,` to walk diagnostics; after `SPC w i` keep
-tapping `i` to keep resizing. Any other key ends the run and keeps its normal
-meaning. Define your own with `repeat <group> <key> <target>`.
+Emacs `repeat-mode`.
+
+| Fact | Value |
+|---|---|
+| Inside a run | a member key keeps it alive |
+| Any other key | ends the run and keeps its normal meaning |
+| Define your own | `repeat <group> <key> <target>` |
+
+| After | Keep tapping | To |
+|---|---|---|
+| `SPC . e` | `.` / `,` | walk diagnostics |
+| `SPC w i` | `i` | keep resizing |
 
 ## Read-only and special buffers
 
-Read-only buffers stay in NORMAL — motions, selections, search, and avy all
-work; the modifying commands quietly no-op or report "Buffer is read-only".
-Terminal, prompt, and quickfix buffers are left to Neovim.
+| Buffer | Behavior |
+|---|---|
+| Read-only | stays in NORMAL — motions, selections, search and avy work; modifying commands no-op or report "Buffer is read-only" |
+| Terminal, prompt, quickfix | left to Neovim |
 
 ## Development
 
@@ -146,21 +160,28 @@ Terminal, prompt, and quickfix buffers are left to Neovim.
 ./scripts/check.sh   # formatting, lint, the BDD suite, adapter wiring
 ```
 
-That one command is the gate `./setup.sh` runs: `stylua --check` and `selene`
-over `lua plugin tests scripts`, `shellcheck` over the shell scripts, the
-generated-`default_rc` sync check, the BDD suite and the adapter smoke test.
-Every tool runs on its stock rules — there is no rule-config file and no
-baseline; `selene.toml`/`neovim.yml` only declare the Lua dialect and Neovim's
-`vim` global, and `.stylua.toml` only states the house format (2-space indent,
-single quotes). `mise.toml` pins Neovim, stylua, selene and shellcheck, and the
-script fetches them through mise when they are not on your PATH.
-`luacheck` also passes clean (`.luacheckrc` names the dialect and the same
-global) and is worth a run if you have it; it ships no binary release, so the
-gate does not make it a prerequisite.
+That one command is the gate `./setup.sh` runs.
 
-The behavior lives in `lua/neomeow/core/` behind a small host-port seam and is
-covered by a full BDD suite that runs headlessly in milliseconds; the Neovim
-wiring is the thin adapter in `lua/neomeow/`.
+| Stage | Tool / scope |
+|---|---|
+| Format | `stylua --check` over `lua plugin tests scripts` |
+| Lint | `selene` over the same, `shellcheck` over the shell scripts |
+| Sync | the generated `default_rc` matches `.neomeowrc` |
+| Behavior | the BDD suite and the adapter smoke test |
+
+| Config file | Declares |
+|---|---|
+| `selene.toml` / `neovim.yml` | the Lua dialect and Neovim's `vim` global |
+| `.stylua.toml` | the house format — 2-space indent, single quotes |
+| `.luacheckrc` | the dialect and the same global; `luacheck` passes clean but ships no binary release, so the gate does not require it |
+| `mise.toml` | pins Neovim, stylua, selene and shellcheck; the script fetches them through mise when they are not on PATH |
+
+Every tool runs on its stock rules — no rule-config file, no baseline.
+
+| Layer | Where |
+|---|---|
+| Behavior | `lua/neomeow/core/`, behind a small host-port seam, covered by a headless BDD suite |
+| Neovim wiring | the thin adapter in `lua/neomeow/` |
 
 ## License
 
