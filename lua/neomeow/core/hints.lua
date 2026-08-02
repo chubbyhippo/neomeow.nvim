@@ -27,18 +27,18 @@ function M.expandHintPositions(ctx, count)
   if sel.anchor == sel.active then
     return {}
   end
-  local st = ctx.st
+  local state = ctx.state
   local caret = sel.active
   local backward = caret < sel.anchor
   local out = {}
-  if st.selType == SelType.WORD or st.selType == SelType.SYMBOL then
-    local pred = text_.charPred(st.selType == SelType.SYMBOL)
+  if state.selType == SelType.WORD or state.selType == SelType.SYMBOL then
+    local isWord = text_.charPred(state.selType == SelType.SYMBOL)
     local i = caret
     for _ = 1, count do
       if backward then
-        i = text_.Words.prevStart(text, i, 1, pred)
+        i = text_.Words.prevStart(text, i, 1, isWord)
       else
-        i = text_.Words.nextEnd(text, i, 1, pred)
+        i = text_.Words.nextEnd(text, i, 1, isWord)
       end
       if backward and i <= 0 then
         break
@@ -48,35 +48,35 @@ function M.expandHintPositions(ctx, count)
       end
       table.insert(out, i)
     end
-  elseif st.selType == SelType.LINE then
-    local ln = text_.lineOfOffset(text, caret)
+  elseif state.selType == SelType.LINE then
+    local line = text_.lineOfOffset(text, caret)
     for _ = 1, count do
-      ln = ln + (backward and -1 or 1)
-      if ln < 0 or ln > text_.lineCount(text) - 1 then
+      line = line + (backward and -1 or 1)
+      if line < 0 or line > text_.lineCount(text) - 1 then
         break
       end
-      table.insert(out, backward and text_.lineStart(text, ln) or text_.lineEnd(text, ln))
+      table.insert(out, backward and text_.lineStart(text, line) or text_.lineEnd(text, line))
     end
-  elseif st.selType == SelType.FIND or st.selType == SelType.TILL then
-    local c = st.lastFind
-    if c == nil then
+  elseif state.selType == SelType.FIND or state.selType == SelType.TILL then
+    local char = state.lastFind
+    if char == nil then
       return out
     end
-    local till = st.selType == SelType.TILL
+    local till = state.selType == SelType.TILL
     for k = 1, count do
-      local t = text_.nthCharTarget(text, c, caret, k, backward, till)
-      if t < 0 then
+      local target = text_.nthCharTarget(text, char, caret, k, backward, till)
+      if target < 0 then
         break
       end
-      table.insert(out, t)
+      table.insert(out, target)
     end
   end
   local seen = {}
   local unique = {}
-  for _, p in ipairs(out) do
-    if not seen[p] then
-      seen[p] = true
-      table.insert(unique, p)
+  for _, position in ipairs(out) do
+    if not seen[position] then
+      seen[position] = true
+      table.insert(unique, position)
     end
   end
   return unique

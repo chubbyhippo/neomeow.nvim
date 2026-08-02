@@ -298,10 +298,10 @@ describe('SelectionSpec', function()
     local s = h.freshSpec()
     s:given('two words', '<caret>hello world')
     s:whenKeys('wG')
-    s.st.selectionHistory = {}
+    s.state.selectionHistory = {}
     s:whenKeys('z')
     s:thenSelection('hello')
-    h.eq(s.st.grab, nil, 'grab is consumed by pop')
+    h.eq(s.state.grab, nil, 'grab is consumed by pop')
   end)
 
   it('given g then the selection is cancelled', function()

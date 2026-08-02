@@ -76,12 +76,12 @@ local PREFIX_MODIFIERS = {
   S = 'shift',
 }
 
-local function isLowerLetter(s)
-  return s:match('^%l$') ~= nil
+local function isLowerLetter(char)
+  return char:match('^%l$') ~= nil
 end
 
-local function isUpperLetter(s)
-  return s:match('^%u$') ~= nil
+local function isUpperLetter(char)
+  return char:match('^%u$') ~= nil
 end
 
 function M.named(token, shift)

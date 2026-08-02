@@ -24,23 +24,23 @@ local KEYS = 'asdfghjkl'
 
 M.TIMEOUT_MS = 250
 
-function M.subdiv(n, b)
-  local p = math.floor(math.log(n) / math.log(b) + 1e-6) - 1
-  local x1 = 1
-  for _ = 1, p do
-    x1 = x1 * b
+function M.subdiv(count, base)
+  local depth = math.floor(math.log(count) / math.log(base) + 1e-6) - 1
+  local shallowWidth = 1
+  for _ = 1, depth do
+    shallowWidth = shallowWidth * base
   end
-  local x2 = b * x1
-  local delta = n - x2
-  local n2 = math.floor(delta / (x2 - x1))
-  local n1 = b - n2 - 1
+  local deepWidth = base * shallowWidth
+  local delta = count - deepWidth
+  local deepBuckets = math.floor(delta / (deepWidth - shallowWidth))
+  local shallowBuckets = base - deepBuckets - 1
   local out = {}
-  for _ = 1, n1 do
-    table.insert(out, x1)
+  for _ = 1, shallowBuckets do
+    table.insert(out, shallowWidth)
   end
-  table.insert(out, n - n1 * x1 - n2 * x2)
-  for _ = 1, n2 do
-    table.insert(out, x2)
+  table.insert(out, count - shallowBuckets * shallowWidth - deepBuckets * deepWidth)
+  for _ = 1, deepBuckets do
+    table.insert(out, deepWidth)
   end
   return out
 end
@@ -77,11 +77,11 @@ end
 
 local function labels(node)
   local out = {}
-  local function walk(n, path)
-    if n.kind == 'leaf' then
-      table.insert(out, { n.offset, path })
+  local function walk(current, path)
+    if current.kind == 'leaf' then
+      table.insert(out, { current.offset, path })
     else
-      for _, pair in ipairs(n.children) do
+      for _, pair in ipairs(current.children) do
         walk(pair[2], path .. pair[1])
       end
     end
@@ -140,9 +140,9 @@ local function matches(ctx, input)
     return {}
   end
   local text = ctx.port:getText()
-  local vis = visibleLines(ctx)
-  local from = text_.lineStart(text, vis.first)
-  local to = text_.lineEnd(text, vis.last)
+  local visible = visibleLines(ctx)
+  local from = text_.lineStart(text, visible.first)
+  local to = text_.lineEnd(text, visible.last)
   local haystack = text:lower()
   local needle = input:lower()
   local out = {}
@@ -168,7 +168,7 @@ local function jump(ctx, offset)
 end
 
 function M.cancel(ctx)
-  local session = ctx.st.avy
+  local session = ctx.state.avy
   if session ~= nil then
     if session.timer ~= nil then
       ctx.ui:cancelTimer(session.timer)
@@ -176,7 +176,7 @@ function M.cancel(ctx)
     session.timer = nil
     ctx.ui:clearAvy()
   end
-  ctx.st.avy = nil
+  ctx.state.avy = nil
 end
 
 local function toSelecting(ctx, session, candidates)
@@ -187,7 +187,7 @@ local function toSelecting(ctx, session, candidates)
 end
 
 function M.finishInput(ctx)
-  local session = ctx.st.avy
+  local session = ctx.state.avy
   if session == nil or session.phase ~= 'collecting' then
     return
   end
@@ -207,8 +207,8 @@ function M.finishInput(ctx)
   end
 end
 
-local function collect(ctx, session, c)
-  session.input = session.input .. c
+local function collect(ctx, session, char)
+  session.input = session.input .. char
   if session.timer ~= nil then
     ctx.ui:cancelTimer(session.timer)
   end
@@ -223,19 +223,19 @@ local function collect(ctx, session, c)
   ctx.ui:showAvyMatches(ranges)
 end
 
-local function selectLabel(ctx, session, c)
-  if session.gotoLine and c >= '0' and c <= '9' then
+local function selectLabel(ctx, session, char)
+  if session.gotoLine and char >= '0' and char <= '9' then
     M.cancel(ctx)
-    local input = ctx.ui:input('Goto line:', c)
+    local input = ctx.ui:input('Goto line:', char)
     if input == nil then
       return
     end
     local text = ctx.port:getText()
-    local ln = text_.parsedLineNumber(input, text_.lineCount(text))
-    if ln == nil then
+    local line = text_.parsedLineNumber(input, text_.lineCount(text))
+    if line == nil then
       return
     end
-    jump(ctx, text_.lineStart(text, ln))
+    jump(ctx, text_.lineStart(text, line))
     return
   end
   local node = session.node
@@ -244,13 +244,13 @@ local function selectLabel(ctx, session, c)
   end
   local child = nil
   for _, pair in ipairs(node.children) do
-    if pair[1] == c then
+    if pair[1] == char then
       child = pair[2]
       break
     end
   end
   if child == nil then
-    ctx.ui:hint('No such candidate: ' .. c)
+    ctx.ui:hint('No such candidate: ' .. char)
   elseif child.kind == 'leaf' then
     M.cancel(ctx)
     jump(ctx, child.offset)
@@ -260,32 +260,32 @@ local function selectLabel(ctx, session, c)
   end
 end
 
-function M.key(ctx, c)
-  local session = ctx.st.avy
+function M.key(ctx, char)
+  local session = ctx.state.avy
   if session == nil then
     return
   end
   if session.phase == 'collecting' then
-    collect(ctx, session, c)
+    collect(ctx, session, char)
   else
-    selectLabel(ctx, session, c)
+    selectLabel(ctx, session, char)
   end
 end
 
 local function startCharTimer(ctx)
   M.cancel(ctx)
-  ctx.st.avy = newSession(false)
+  ctx.state.avy = newSession(false)
 end
 
 local function startGotoLine(ctx)
   M.cancel(ctx)
   local session = newSession(true)
-  ctx.st.avy = session
+  ctx.state.avy = session
   local text = ctx.port:getText()
-  local vis = visibleLines(ctx)
+  local visible = visibleLines(ctx)
   local candidates = {}
-  for ln = vis.first, vis.last do
-    table.insert(candidates, text_.lineStart(text, ln))
+  for line = visible.first, visible.last do
+    table.insert(candidates, text_.lineStart(text, line))
   end
   toSelecting(ctx, session, candidates)
 end

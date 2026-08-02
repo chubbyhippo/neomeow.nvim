@@ -16,9 +16,9 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 local text_ = require('neomeow.core.text')
-local state = require('neomeow.core.state')
-local MeowMode = state.MeowMode
-local SelType = state.SelType
+local State = require('neomeow.core.state')
+local MeowMode = State.MeowMode
+local SelType = State.SelType
 local port_ = require('neomeow.core.port')
 local Sel = require('neomeow.core.selections')
 local Grab = require('neomeow.core.grab')
@@ -41,72 +41,75 @@ local function editCarets(ctx, compute)
   local sels = ctx.port:getSelections()
   local order = {}
   for index, sel in ipairs(sels) do
-    table.insert(order, { sel = sel, index = index, lo = Sel.lo(sel) })
+    table.insert(order, { sel = sel, index = index, selStart = Sel.selStart(sel) })
   end
   table.sort(order, function(a, b)
-    if a.lo ~= b.lo then
-      return a.lo > b.lo
+    if a.selStart ~= b.selStart then
+      return a.selStart > b.selStart
     end
     return a.index < b.index
   end)
   local edits = {}
   local results = {}
   for _, item in ipairs(order) do
-    local hi = Sel.hi(item.sel)
-    local r = compute(item.sel, item.lo, hi)
-    if r.edit ~= nil then
-      table.insert(edits, r.edit)
+    local selEnd = Sel.selEnd(item.sel)
+    local result = compute(item.sel, item.selStart, selEnd)
+    if result.edit ~= nil then
+      table.insert(edits, result.edit)
     end
-    results[item.index] = r
+    results[item.index] = result
   end
   local newSels = {}
   local delta = 0
   for i = #order, 1, -1 do
     local item = order[i]
-    local r = results[item.index]
-    newSels[item.index] = { anchor = r.sel.anchor + delta, active = r.sel.active + delta }
-    if r.edit ~= nil then
-      delta = delta + #r.edit.text - (r.edit.stop - r.edit.start)
+    local result = results[item.index]
+    newSels[item.index] = { anchor = result.sel.anchor + delta, active = result.sel.active + delta }
+    if result.edit ~= nil then
+      delta = delta + #result.edit.text - (result.edit.stop - result.edit.start)
     end
   end
-  Grab.adjustForEdits(ctx.st, edits)
+  Grab.adjustForEdits(ctx.state, edits)
   if #edits > 0 then
     ctx.port:edit(edits)
   end
   ctx.port:setSelections(newSels)
 end
 
-local function deleteSelectionOrCharForward(text, lo, hi)
-  if lo ~= hi then
-    return { edit = { start = lo, stop = hi, text = '' }, sel = { anchor = lo, active = lo } }
+local function deleteSelectionOrCharForward(text, selStart, selEnd)
+  if selStart ~= selEnd then
+    return { edit = { start = selStart, stop = selEnd, text = '' }, sel = { anchor = selStart, active = selStart } }
   end
-  if lo < #text then
-    return { edit = { start = lo, stop = lo + 1, text = '' }, sel = { anchor = lo, active = lo } }
+  if selStart < #text then
+    return {
+      edit = { start = selStart, stop = selStart + 1, text = '' },
+      sel = { anchor = selStart, active = selStart },
+    }
   end
-  return { edit = nil, sel = { anchor = lo, active = lo } }
+  return { edit = nil, sel = { anchor = selStart, active = selStart } }
 end
 
 local function insert(ctx)
   local moved = {}
-  for i, s in ipairs(ctx.port:getSelections()) do
-    local o = Sel.lo(s)
-    moved[i] = { anchor = o, active = o }
+  for i, sel in ipairs(ctx.port:getSelections()) do
+    local offset = Sel.selStart(sel)
+    moved[i] = { anchor = offset, active = offset }
   end
   ctx.port:setSelections(moved)
-  ctx.st.selType = SelType.NONE
-  Sel.resetSelectionMemory(ctx.st)
+  ctx.state.selType = SelType.NONE
+  Sel.resetSelectionMemory(ctx.state)
   port_.setMode(ctx, MeowMode.INSERT)
 end
 
 local function append(ctx)
   local moved = {}
-  for i, s in ipairs(ctx.port:getSelections()) do
-    local o = Sel.hi(s)
-    moved[i] = { anchor = o, active = o }
+  for i, sel in ipairs(ctx.port:getSelections()) do
+    local offset = Sel.selEnd(sel)
+    moved[i] = { anchor = offset, active = offset }
   end
   ctx.port:setSelections(moved)
-  ctx.st.selType = SelType.NONE
-  Sel.resetSelectionMemory(ctx.st)
+  ctx.state.selType = SelType.NONE
+  Sel.resetSelectionMemory(ctx.state)
   port_.setMode(ctx, MeowMode.INSERT)
 end
 
@@ -118,7 +121,7 @@ local function openBelow(ctx)
   local text = ctx.port:getText()
   local eol = text_.lineEnd(text, text_.lineOfOffset(text, Sel.primary(ctx).active))
   local edits = { { start = eol, stop = eol, text = '\n' } }
-  Grab.adjustForEdits(ctx.st, edits)
+  Grab.adjustForEdits(ctx.state, edits)
   ctx.port:edit(edits)
   ctx.port:setSelections({ { anchor = eol + 1, active = eol + 1 } })
   port_.setMode(ctx, MeowMode.INSERT)
@@ -131,7 +134,7 @@ local function openLine(ctx)
   Sel.collapse(ctx)
   local at = Sel.primary(ctx).active
   local edits = { { start = at, stop = at, text = '\n' } }
-  Grab.adjustForEdits(ctx.st, edits)
+  Grab.adjustForEdits(ctx.state, edits)
   ctx.port:edit(edits)
   ctx.port:setSelections({ { anchor = at, active = at } })
 end
@@ -155,7 +158,7 @@ local function horizontalSpace(ctx, replacement)
     return
   end
   local edits = { { start = from, stop = to, text = replacement } }
-  Grab.adjustForEdits(ctx.st, edits)
+  Grab.adjustForEdits(ctx.state, edits)
   ctx.port:edit(edits)
   local caret = from + #replacement
   ctx.port:setSelections({ { anchor = caret, active = caret } })
@@ -167,11 +170,11 @@ local function openAbove(ctx)
   end
   Sel.collapse(ctx)
   local text = ctx.port:getText()
-  local bol = text_.lineStart(text, text_.lineOfOffset(text, Sel.primary(ctx).active))
-  local edits = { { start = bol, stop = bol, text = '\n' } }
-  Grab.adjustForEdits(ctx.st, edits)
+  local lineStartOffset = text_.lineStart(text, text_.lineOfOffset(text, Sel.primary(ctx).active))
+  local edits = { { start = lineStartOffset, stop = lineStartOffset, text = '\n' } }
+  Grab.adjustForEdits(ctx.state, edits)
   ctx.port:edit(edits)
-  ctx.port:setSelections({ { anchor = bol, active = bol } })
+  ctx.port:setSelections({ { anchor = lineStartOffset, active = lineStartOffset } })
   port_.setMode(ctx, MeowMode.INSERT)
 end
 
@@ -184,10 +187,10 @@ local function change(ctx)
   if not Sel.hasSelection(prim) and prim.active >= #text then
     return
   end
-  editCarets(ctx, function(_sel, lo, hi)
-    return deleteSelectionOrCharForward(text, lo, hi)
+  editCarets(ctx, function(_sel, selStart, selEnd)
+    return deleteSelectionOrCharForward(text, selStart, selEnd)
   end)
-  ctx.st.selType = SelType.NONE
+  ctx.state.selType = SelType.NONE
   port_.setMode(ctx, MeowMode.INSERT)
 end
 
@@ -196,60 +199,63 @@ local function del(ctx)
     return
   end
   local text = ctx.port:getText()
-  editCarets(ctx, function(_sel, lo, hi)
-    return deleteSelectionOrCharForward(text, lo, hi)
+  editCarets(ctx, function(_sel, selStart, selEnd)
+    return deleteSelectionOrCharForward(text, selStart, selEnd)
   end)
-  ctx.st.selType = SelType.NONE
+  ctx.state.selType = SelType.NONE
 end
 
 local function backwardDelete(ctx)
   if not allowModify(ctx) then
     return
   end
-  editCarets(ctx, function(_sel, lo, hi)
-    if lo ~= hi then
-      return { edit = { start = lo, stop = hi, text = '' }, sel = { anchor = lo, active = lo } }
+  editCarets(ctx, function(_sel, selStart, selEnd)
+    if selStart ~= selEnd then
+      return { edit = { start = selStart, stop = selEnd, text = '' }, sel = { anchor = selStart, active = selStart } }
     end
-    if lo > 0 then
-      return { edit = { start = lo - 1, stop = lo, text = '' }, sel = { anchor = lo - 1, active = lo - 1 } }
+    if selStart > 0 then
+      return {
+        edit = { start = selStart - 1, stop = selStart, text = '' },
+        sel = { anchor = selStart - 1, active = selStart - 1 },
+      }
     end
-    return { edit = nil, sel = { anchor = lo, active = lo } }
+    return { edit = nil, sel = { anchor = selStart, active = selStart } }
   end)
-  ctx.st.selType = SelType.NONE
+  ctx.state.selType = SelType.NONE
 end
 
 local function killRange(ctx, sel, text)
-  local lo = Sel.lo(sel)
-  local hi = Sel.hi(sel)
-  if ctx.st.selType == SelType.LINE and sel.active >= sel.anchor and hi < #text then
-    if text_.charAt(text, hi) == '\r' then
-      hi = hi + 1
+  local selStart = Sel.selStart(sel)
+  local selEnd = Sel.selEnd(sel)
+  if ctx.state.selType == SelType.LINE and sel.active >= sel.anchor and selEnd < #text then
+    if text_.charAt(text, selEnd) == '\r' then
+      selEnd = selEnd + 1
     end
-    if hi < #text and text_.charAt(text, hi) == '\n' then
-      hi = hi + 1
+    if selEnd < #text and text_.charAt(text, selEnd) == '\n' then
+      selEnd = selEnd + 1
     end
   end
-  return { lo = lo, hi = hi }
+  return { selStart = selStart, selEnd = selEnd }
 end
 
 local function regionsInOrder(sels)
   local regions = {}
-  for _, s in ipairs(sels) do
-    if s.anchor ~= s.active then
-      table.insert(regions, s)
+  for _, sel in ipairs(sels) do
+    if sel.anchor ~= sel.active then
+      table.insert(regions, sel)
     end
   end
   table.sort(regions, function(a, b)
-    return Sel.lo(a) < Sel.lo(b)
+    return Sel.selStart(a) < Sel.selStart(b)
   end)
   return regions
 end
 
 local function joinedKillText(ctx, text, regions)
   local parts = {}
-  for _, s in ipairs(regions) do
-    local r = killRange(ctx, s, text)
-    table.insert(parts, text_.slice(text, r.lo, r.hi))
+  for _, sel in ipairs(regions) do
+    local killed = killRange(ctx, sel, text)
+    table.insert(parts, text_.slice(text, killed.selStart, killed.selEnd))
   end
   return table.concat(parts, '\n')
 end
@@ -257,58 +263,61 @@ end
 local function joinKill(ctx)
   local text = ctx.port:getText()
   local prim = Sel.primary(ctx)
-  local s = Sel.lo(prim)
-  local e = Sel.hi(prim)
-  local before = s > 0 and text_.charAt(text, s - 1) or '\n'
-  local after = e < #text and text_.charAt(text, e) or '\n'
+  local selStart = Sel.selStart(prim)
+  local selEnd = Sel.selEnd(prim)
+  local before = selStart > 0 and text_.charAt(text, selStart - 1) or '\n'
+  local after = selEnd < #text and text_.charAt(text, selEnd) or '\n'
   local space = before ~= '\n'
     and after ~= '\n'
     and before:match('^%s$') == nil
     and after:match('^%s$') == nil
     and (')]}.,;:'):find(after, 1, true) == nil
     and ('([{'):find(before, 1, true) == nil
-  local edits = { { start = s, stop = e, text = space and ' ' or '' } }
-  Grab.adjustForEdits(ctx.st, edits)
+  local edits = { { start = selStart, stop = selEnd, text = space and ' ' or '' } }
+  Grab.adjustForEdits(ctx.state, edits)
   ctx.port:edit(edits)
-  ctx.port:setSelections({ { anchor = s, active = s } })
-  ctx.st.selType = SelType.NONE
-  ctx.st.selExpand = false
+  ctx.port:setSelections({ { anchor = selStart, active = selStart } })
+  ctx.state.selType = SelType.NONE
+  ctx.state.selExpand = false
 end
 
 local function kill(ctx)
   if not allowModify(ctx) then
     return
   end
-  local st = ctx.st
+  local state = ctx.state
   local text = ctx.port:getText()
   local prim = Sel.primary(ctx)
-  if st.selType == SelType.JOIN and Sel.hasSelection(prim) then
+  if state.selType == SelType.JOIN and Sel.hasSelection(prim) then
     joinKill(ctx)
     return
   end
   if Sel.hasSelection(prim) then
     ctx.clipboard:write(joinedKillText(ctx, text, regionsInOrder(ctx.port:getSelections())))
-    editCarets(ctx, function(sel, lo, hi)
-      if lo == hi then
+    editCarets(ctx, function(sel, selStart, selEnd)
+      if selStart == selEnd then
         return { edit = nil, sel = sel }
       end
-      local r = killRange(ctx, sel, text)
-      return { edit = { start = r.lo, stop = r.hi, text = '' }, sel = { anchor = r.lo, active = r.lo } }
+      local killed = killRange(ctx, sel, text)
+      return {
+        edit = { start = killed.selStart, stop = killed.selEnd, text = '' },
+        sel = { anchor = killed.selStart, active = killed.selStart },
+      }
     end)
-    st.selType = SelType.NONE
+    state.selType = SelType.NONE
     return
   end
   if #text == 0 then
     return
   end
   local caret = prim.active
-  local ln = text_.lineOfOffset(text, caret)
-  local eol = text_.lineEnd(text, ln)
-  local stop = caret == eol and text_.lineStart(text, ln + 1) or eol
+  local caretLine = text_.lineOfOffset(text, caret)
+  local eol = text_.lineEnd(text, caretLine)
+  local stop = caret == eol and text_.lineStart(text, caretLine + 1) or eol
   if stop > caret then
     ctx.clipboard:write(text_.slice(text, caret, stop))
     local edits = { { start = caret, stop = stop, text = '' } }
-    Grab.adjustForEdits(st, edits)
+    Grab.adjustForEdits(state, edits)
     ctx.port:edit(edits)
     ctx.port:setSelections({ { anchor = caret, active = caret } })
   end
@@ -323,18 +332,18 @@ local function save(ctx)
   end
   ctx.clipboard:write(joinedKillText(ctx, text, withSel))
   local moved = {}
-  for i, s in ipairs(sels) do
-    if s.anchor == s.active then
-      moved[i] = s
+  for i, sel in ipairs(sels) do
+    if sel.anchor == sel.active then
+      moved[i] = sel
     else
-      local r = killRange(ctx, s, text)
-      local caret = s.active >= s.anchor and r.hi or r.lo
+      local killed = killRange(ctx, sel, text)
+      local caret = sel.active >= sel.anchor and killed.selEnd or killed.selStart
       moved[i] = { anchor = caret, active = caret }
     end
   end
   ctx.port:setSelections(moved)
-  ctx.st.selType = SelType.NONE
-  ctx.st.selExpand = false
+  ctx.state.selType = SelType.NONE
+  ctx.state.selExpand = false
 end
 
 local function yank(ctx)
@@ -365,29 +374,29 @@ local function replace(ctx)
     return
   end
   local clip = raw:gsub('\n+$', '')
-  editCarets(ctx, function(sel, lo, hi)
-    if lo == hi then
+  editCarets(ctx, function(sel, selStart, selEnd)
+    if selStart == selEnd then
       return { edit = nil, sel = sel }
     end
     return {
-      edit = { start = lo, stop = hi, text = clip },
-      sel = { anchor = lo + #clip, active = lo + #clip },
+      edit = { start = selStart, stop = selEnd, text = clip },
+      sel = { anchor = selStart + #clip, active = selStart + #clip },
     }
   end)
-  ctx.st.selType = SelType.NONE
+  ctx.state.selType = SelType.NONE
 end
 
 local function capitalizedWords(slice)
-  local pred = text_.charPred(false)
+  local isWord = text_.charPred(false)
   local out = {}
   local inWord = false
   for i = 1, #slice do
-    local c = slice:sub(i, i)
-    if pred(c) then
-      table.insert(out, inWord and c:lower() or c:upper())
+    local char = slice:sub(i, i)
+    if isWord(char) then
+      table.insert(out, inWord and char:lower() or char:upper())
       inWord = true
     else
-      table.insert(out, c)
+      table.insert(out, char)
       inWord = false
     end
   end
@@ -408,29 +417,33 @@ local function caseWord(ctx, op)
   if M.blockedReadOnly(ctx) then
     return
   end
-  local n = ctx.st:takeCount(1)
-  if n == 0 then
+  local count = ctx.state:takeCount(1)
+  if count == 0 then
     return
   end
   local hadSelection = Sel.hasSelection(Sel.primary(ctx))
   local text = ctx.port:getText()
-  local pred = text_.charPred(false)
+  local isWord = text_.charPred(false)
   editCarets(ctx, function(sel)
     local from = sel.active
     local target
-    if n > 0 then
-      target = text_.Words.nextEnd(text, from, n, pred)
+    if count > 0 then
+      target = text_.Words.nextEnd(text, from, count, isWord)
     else
-      target = text_.Words.prevStart(text, from, -n, pred)
+      target = text_.Words.prevStart(text, from, -count, isWord)
     end
-    local s = math.min(from, target)
-    local e = math.max(from, target)
-    if s == e then
+    local startOffset = math.min(from, target)
+    local endOffset = math.max(from, target)
+    if startOffset == endOffset then
       return { edit = nil, sel = sel }
     end
-    local caret = n > 0 and e or from
+    local caret = count > 0 and endOffset or from
     return {
-      edit = { start = s, stop = e, text = casified(text_.slice(text, s, e), op) },
+      edit = {
+        start = startOffset,
+        stop = endOffset,
+        text = casified(text_.slice(text, startOffset, endOffset), op),
+      },
       sel = { anchor = caret, active = caret },
     }
   end)
@@ -443,48 +456,51 @@ local function killWord(ctx)
   if M.blockedReadOnly(ctx) then
     return
   end
-  local n = ctx.st:takeCount(1)
-  if n == 0 then
+  local count = ctx.state:takeCount(1)
+  if count == 0 then
     return
   end
   local text = ctx.port:getText()
-  local pred = text_.charPred(false)
+  local isWord = text_.charPred(false)
   local function rangeAt(from)
     local target
-    if n > 0 then
-      target = text_.Words.nextEnd(text, from, n, pred)
+    if count > 0 then
+      target = text_.Words.nextEnd(text, from, count, isWord)
     else
-      target = text_.Words.prevStart(text, from, -n, pred)
+      target = text_.Words.prevStart(text, from, -count, isWord)
     end
-    return { lo = math.min(from, target), hi = math.max(from, target) }
+    return { startOffset = math.min(from, target), endOffset = math.max(from, target) }
   end
   local killed = {}
   for _, sel in ipairs(ctx.port:getSelections()) do
-    local r = rangeAt(sel.active)
-    if r.lo ~= r.hi then
-      table.insert(killed, r)
+    local range = rangeAt(sel.active)
+    if range.startOffset ~= range.endOffset then
+      table.insert(killed, range)
     end
   end
   table.sort(killed, function(a, b)
-    return a.lo < b.lo
+    return a.startOffset < b.startOffset
   end)
   if #killed == 0 then
     return
   end
   local parts = {}
-  for _, r in ipairs(killed) do
-    table.insert(parts, text_.slice(text, r.lo, r.hi))
+  for _, range in ipairs(killed) do
+    table.insert(parts, text_.slice(text, range.startOffset, range.endOffset))
   end
   ctx.clipboard:write(table.concat(parts, '\n'))
   editCarets(ctx, function(sel)
-    local r = rangeAt(sel.active)
-    if r.lo == r.hi then
+    local range = rangeAt(sel.active)
+    if range.startOffset == range.endOffset then
       return { edit = nil, sel = { anchor = sel.active, active = sel.active } }
     end
-    return { edit = { start = r.lo, stop = r.hi, text = '' }, sel = { anchor = r.lo, active = r.lo } }
+    return {
+      edit = { start = range.startOffset, stop = range.endOffset, text = '' },
+      sel = { anchor = range.startOffset, active = range.startOffset },
+    }
   end)
-  ctx.st.selType = SelType.NONE
-  ctx.st.selExpand = false
+  ctx.state.selType = SelType.NONE
+  ctx.state.selExpand = false
 end
 
 local function undo(ctx)

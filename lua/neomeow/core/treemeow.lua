@@ -30,56 +30,56 @@ local LIST_MOTIONS = {
 
 function M.boundChars()
   local out = {}
-  local function consider(c)
-    local b = Rc.cfg().motion[c]
-    if b == nil then
-      b = Rc.defaults().motion[c]
+  local function consider(char)
+    local binding = Rc.cfg().motion[char]
+    if binding == nil then
+      binding = Rc.defaults().motion[char]
     end
-    if b ~= nil and b.command ~= 'ignore' then
-      out[c] = true
+    if binding ~= nil and binding.command ~= 'ignore' then
+      out[char] = true
     end
   end
-  for c in pairs(Rc.defaults().motion) do
-    consider(c)
+  for char in pairs(Rc.defaults().motion) do
+    consider(char)
   end
-  for c in pairs(Rc.cfg().motion) do
-    consider(c)
+  for char in pairs(Rc.cfg().motion) do
+    consider(char)
   end
   return out
 end
 
-function M.dispatch(run, c, noremap, depth)
+function M.dispatch(run, char, noremap, depth)
   noremap = noremap or false
   depth = depth or 0
-  local b = nil
+  local binding = nil
   if not noremap then
-    b = Rc.cfg().motion[c]
+    binding = Rc.cfg().motion[char]
   end
-  if b == nil then
-    b = Rc.defaults().motion[c]
+  if binding == nil then
+    binding = Rc.defaults().motion[char]
   end
-  if b == nil then
+  if binding == nil then
     return
   end
-  if b.command ~= nil then
-    local listCommand = LIST_MOTIONS[b.command]
+  if binding.command ~= nil then
+    local listCommand = LIST_MOTIONS[binding.command]
     if listCommand ~= nil then
       run(listCommand)
     end
     return
   end
-  if b.action ~= nil then
-    run(b.action)
+  if binding.action ~= nil then
+    run(binding.action)
     return
   end
-  if b.keys == nil then
+  if binding.keys == nil then
     return
   end
   if depth >= MAX_DISPATCH_DEPTH then
     return
   end
-  for i = 1, #b.keys do
-    M.dispatch(run, b.keys:sub(i, i), noremap or not b.recursive, depth + 1)
+  for i = 1, #binding.keys do
+    M.dispatch(run, binding.keys:sub(i, i), noremap or not binding.recursive, depth + 1)
   end
 end
 

@@ -107,17 +107,17 @@ local function windmoveStep(dir)
 end
 
 local function windmoveSwap(dir)
-  local w1 = vim.api.nvim_get_current_win()
-  local b1 = vim.api.nvim_win_get_buf(w1)
+  local fromWin = vim.api.nvim_get_current_win()
+  local fromBuf = vim.api.nvim_win_get_buf(fromWin)
   vim.cmd(windmove.plan(dir))
-  local w2 = vim.api.nvim_get_current_win()
-  if w2 == w1 then
+  local toWin = vim.api.nvim_get_current_win()
+  if toWin == fromWin then
     vim.api.nvim_echo({ { windmove.noWindowMessage(dir), 'WarningMsg' } }, false, {})
     return
   end
-  local b2 = vim.api.nvim_win_get_buf(w2)
-  vim.api.nvim_win_set_buf(w1, b2)
-  vim.api.nvim_win_set_buf(w2, b1)
+  local toBuf = vim.api.nvim_win_get_buf(toWin)
+  vim.api.nvim_win_set_buf(fromWin, toBuf)
+  vim.api.nvim_win_set_buf(toWin, fromBuf)
 end
 
 local function aceCandidates()
@@ -181,11 +181,11 @@ local function readAcePick(wins, labelList)
   local input = ''
   local picked = nil
   while true do
-    local ok, ch = pcall(vim.fn.getcharstr)
-    if not ok or ch == '' or ch == ESC then
+    local ok, char = pcall(vim.fn.getcharstr)
+    if not ok or char == '' or char == ESC then
       break
     end
-    input = input .. ch
+    input = input .. char
     local remaining = ace.matches(labelList, input)
     if #remaining == 0 then
       break
@@ -256,11 +256,11 @@ function M.aceResize()
   local prompt = 'resize: ' .. table.concat(keys, ' ') .. ' — ESC when done'
   while true do
     vim.api.nvim_echo({ { 'neomeow: ' .. prompt, 'Normal' } }, false, {})
-    local ok, ch = pcall(vim.fn.getcharstr)
-    if not ok or ch == '' or ch == ESC then
+    local ok, char = pcall(vim.fn.getcharstr)
+    if not ok or char == '' or char == ESC then
       break
     end
-    if not resize.dispatch(ctx, ch) then
+    if not resize.dispatch(ctx, char) then
       break
     end
     vim.cmd('redraw')
@@ -272,10 +272,10 @@ function M.editRc()
   local path = settingsPath()
   if vim.fn.filereadable(path) == 0 then
     vim.fn.mkdir(vim.fn.fnamemodify(path, ':h'), 'p')
-    local f = io.open(path, 'w')
-    if f ~= nil then
-      f:write(SEED)
-      f:close()
+    local file = io.open(path, 'w')
+    if file ~= nil then
+      file:write(SEED)
+      file:close()
     end
   end
   vim.cmd('edit ' .. vim.fn.fnameescape(path))
@@ -287,11 +287,11 @@ function M.reloadRc()
 end
 
 function M.statusline()
-  local st = vim.b.neomeow_mode
-  if st == nil then
+  local mode = vim.b.neomeow_mode
+  if mode == nil then
     return ''
   end
-  return 'MEOW ' .. st
+  return 'MEOW ' .. mode
 end
 
 local function registerCommands()
@@ -331,17 +331,17 @@ function M.setup(opts)
   end
   registerCommands()
 
-  local grp = vim.api.nvim_create_augroup('neomeow', { clear = true })
+  local group = vim.api.nvim_create_augroup('neomeow', { clear = true })
   local filetypes = opts.filetypes
   vim.api.nvim_create_autocmd(filetypes ~= nil and 'FileType' or 'BufEnter', {
-    group = grp,
+    group = group,
     pattern = filetypes,
     callback = function(ev)
       adapter.attach(ev.buf)
     end,
   })
   vim.api.nvim_create_autocmd({ 'BufWinEnter', 'TermOpen' }, {
-    group = grp,
+    group = group,
     callback = function(ev)
       if not isToolWindow(ev.buf) then
         return
@@ -354,7 +354,7 @@ function M.setup(opts)
     end,
   })
   vim.api.nvim_create_autocmd('WinEnter', {
-    group = grp,
+    group = group,
     callback = function(ev)
       if isToolWindow(ev.buf) then
         return

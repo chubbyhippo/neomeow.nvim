@@ -16,24 +16,24 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 local text_ = require('neomeow.core.text')
-local state = require('neomeow.core.state')
-local SelType = state.SelType
-local Pending = state.Pending
+local State = require('neomeow.core.state')
+local SelType = State.SelType
+local Pending = State.Pending
 local Sel = require('neomeow.core.selections')
 local Search = require('neomeow.core.search')
 
 local M = {}
 
-local function lineStartTarget(text, off)
-  return text_.lineStart(text, text_.lineOfOffset(text, off))
+local function lineStartTarget(text, offset)
+  return text_.lineStart(text, text_.lineOfOffset(text, offset))
 end
 
-local function lineEndTarget(text, off)
-  return text_.lineEnd(text, text_.lineOfOffset(text, off))
+local function lineEndTarget(text, offset)
+  return text_.lineEnd(text, text_.lineOfOffset(text, offset))
 end
 
-local function indentationTarget(text, off)
-  local line = text_.lineOfOffset(text, off)
+local function indentationTarget(text, offset)
+  local line = text_.lineOfOffset(text, offset)
   local stop = text_.lineEnd(text, line)
   local at = text_.lineStart(text, line)
   while at < stop and text_.isBlank(text:sub(at + 1, at + 1)) do
@@ -59,7 +59,7 @@ local VERTICAL = {
 }
 
 local function charSelActive(ctx)
-  return ctx.st.selType == SelType.CHAR and Sel.hasSelection(Sel.primary(ctx))
+  return ctx.state.selType == SelType.CHAR and Sel.hasSelection(Sel.primary(ctx))
 end
 
 local function movedChar(len, sel, dx, extend)
@@ -68,8 +68,8 @@ local function movedChar(len, sel, dx, extend)
 end
 
 local function movedLine(text, sel, dy, extend, goal)
-  local ln = text_.lineOfOffset(text, sel.active)
-  local target = ln + dy
+  local caretLine = text_.lineOfOffset(text, sel.active)
+  local target = caretLine + dy
   local active
   if target < 0 then
     active = 0
@@ -80,22 +80,22 @@ local function movedLine(text, sel, dy, extend, goal)
     if goal ~= nil then
       col = goal
     else
-      col = sel.active - text_.lineStart(text, ln)
+      col = sel.active - text_.lineStart(text, caretLine)
     end
-    local bol = text_.lineStart(text, target)
-    active = bol + math.min(col, text_.lineEnd(text, target) - bol)
+    local lineStartOffset = text_.lineStart(text, target)
+    active = lineStartOffset + math.min(col, text_.lineEnd(text, target) - lineStartOffset)
   end
   return { anchor = extend and sel.anchor or active, active = active }
 end
 
 local function goalColumn(ctx)
-  local st = ctx.st
-  if st.goalColumn == nil or st.lastCommand == nil or not VERTICAL[st.lastCommand] then
+  local state = ctx.state
+  if state.goalColumn == nil or state.lastCommand == nil or not VERTICAL[state.lastCommand] then
     local text = ctx.port:getText()
-    local p = Sel.primary(ctx).active
-    st.goalColumn = p - text_.lineStart(text, text_.lineOfOffset(text, p))
+    local caret = Sel.primary(ctx).active
+    state.goalColumn = caret - text_.lineStart(text, text_.lineOfOffset(text, caret))
   end
-  return st.goalColumn
+  return state.goalColumn
 end
 
 local function moveChar(ctx, dx)
@@ -105,8 +105,8 @@ local function moveChar(ctx, dx)
   end
   local len = #ctx.port:getText()
   local moved = {}
-  for i, s in ipairs(ctx.port:getSelections()) do
-    moved[i] = movedChar(len, s, dx, extend)
+  for i, sel in ipairs(ctx.port:getSelections()) do
+    moved[i] = movedChar(len, sel, dx, extend)
   end
   ctx.port:setSelections(moved)
 end
@@ -119,8 +119,8 @@ local function moveLine(ctx, dy)
   local goal = goalColumn(ctx)
   local text = ctx.port:getText()
   local moved = {}
-  for i, s in ipairs(ctx.port:getSelections()) do
-    moved[i] = movedLine(text, s, dy, extend, i == 1 and goal or nil)
+  for i, sel in ipairs(ctx.port:getSelections()) do
+    moved[i] = movedLine(text, sel, dy, extend, i == 1 and goal or nil)
   end
   ctx.port:setSelections(moved)
 end
@@ -134,17 +134,17 @@ local function moveExpand(ctx, dx, dy)
   local sels = ctx.port:getSelections()
   local before = sels[1].active
   local moved = {}
-  for i, s in ipairs(sels) do
+  for i, sel in ipairs(sels) do
     if dy == 0 then
-      moved[i] = movedChar(#text, s, dx, true)
+      moved[i] = movedChar(#text, sel, dx, true)
     else
-      moved[i] = movedLine(text, s, dy, true, i == 1 and goal or nil)
+      moved[i] = movedLine(text, sel, dy, true, i == 1 and goal or nil)
     end
   end
   ctx.port:setSelections(moved)
   Sel.recordSelect(ctx, SelType.CHAR, moved[1].anchor, moved[1].active, true, before)
-  ctx.st.selType = SelType.CHAR
-  ctx.st.selExpand = true
+  ctx.state.selType = SelType.CHAR
+  ctx.state.selExpand = true
   require('neomeow.core.grab').beacon(ctx)
 end
 
@@ -169,44 +169,44 @@ local function moveToOrExpand(ctx, type_, target)
   local extend = Sel.hasSelection(Sel.primary(ctx))
   local before = Sel.primary(ctx).active
   local moved = {}
-  for i, s in ipairs(ctx.port:getSelections()) do
-    local active = text_.clamp(target(text, s.active), 0, #text)
-    moved[i] = { anchor = extend and s.anchor or active, active = active }
+  for i, sel in ipairs(ctx.port:getSelections()) do
+    local active = text_.clamp(target(text, sel.active), 0, #text)
+    moved[i] = { anchor = extend and sel.anchor or active, active = active }
   end
   ctx.port:setSelections(moved)
   if extend then
     Sel.recordSelect(ctx, type_, moved[1].anchor, moved[1].active, true, before)
-    ctx.st.selType = type_
-    ctx.st.selExpand = true
+    ctx.state.selType = type_
+    ctx.state.selExpand = true
     require('neomeow.core.grab').beacon(ctx)
   end
 end
 
-local function wordOrExpand(ctx, n)
-  local pred = text_.charPred(false)
-  moveToOrExpand(ctx, SelType.WORD, function(text, off)
-    if n >= 0 then
-      return text_.Words.nextEnd(text, off, n, pred)
+local function wordOrExpand(ctx, count)
+  local isWord = text_.charPred(false)
+  moveToOrExpand(ctx, SelType.WORD, function(text, offset)
+    if count >= 0 then
+      return text_.Words.nextEnd(text, offset, count, isWord)
     end
-    return text_.Words.prevStart(text, off, -n, pred)
+    return text_.Words.prevStart(text, offset, -count, isWord)
   end)
 end
 
-local function sentenceOrExpand(ctx, n)
-  moveToOrExpand(ctx, SelType.CHAR, function(text, off)
-    if n >= 0 then
-      return text_.nextSentenceEnd(text, off, n)
+local function sentenceOrExpand(ctx, count)
+  moveToOrExpand(ctx, SelType.CHAR, function(text, offset)
+    if count >= 0 then
+      return text_.nextSentenceEnd(text, offset, count)
     end
-    return text_.prevSentenceStart(text, off, -n)
+    return text_.prevSentenceStart(text, offset, -count)
   end)
 end
 
-local function paragraphOrExpand(ctx, n)
-  moveToOrExpand(ctx, SelType.CHAR, function(text, off)
-    if n >= 0 then
-      return text_.nextParagraphEnd(text, off, n)
+local function paragraphOrExpand(ctx, count)
+  moveToOrExpand(ctx, SelType.CHAR, function(text, offset)
+    if count >= 0 then
+      return text_.nextParagraphEnd(text, offset, count)
     end
-    return text_.prevParagraphStart(text, off, -n)
+    return text_.prevParagraphStart(text, offset, -count)
   end)
 end
 
@@ -214,16 +214,16 @@ local function nextLineStart(text, offset)
   if #text == 0 then
     return 0
   end
-  local ln = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
-  if ln >= text_.lineCount(text) - 1 then
+  local line = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
+  if line >= text_.lineCount(text) - 1 then
     return #text
   end
-  return text_.lineStart(text, ln + 1)
+  return text_.lineStart(text, line + 1)
 end
 
 local function bufferBoundary(ctx, top)
-  local counted = ctx.st.pendingCount ~= 0 or ctx.st.negative
-  local n = ctx.st:takeCount(1)
+  local counted = ctx.state.pendingCount ~= 0 or ctx.state.negative
+  local count = ctx.state:takeCount(1)
   moveToOrExpand(ctx, SelType.CHAR, function(text)
     local len = #text
     if not counted then
@@ -232,44 +232,44 @@ local function bufferBoundary(ctx, top)
       end
       return len
     end
-    local q = len * n / 10
-    local tenth = q >= 0 and math.floor(q) or math.ceil(q)
+    local fraction = len * count / 10
+    local tenth = fraction >= 0 and math.floor(fraction) or math.ceil(fraction)
     local raw = text_.clamp(top and tenth or len - tenth, 0, len)
     return nextLineStart(text, raw)
   end)
 end
 
-local function wordMotion(ctx, symbol, n)
-  if n == 0 then
+local function wordMotion(ctx, symbol, count)
+  if count == 0 then
     return
   end
   local text = ctx.port:getText()
   local type_ = wordType(symbol)
   local sel = Sel.primary(ctx)
-  local lo = Sel.lo(sel)
-  local hi = Sel.hi(sel)
-  if not (Sel.hasSelection(sel) and ctx.st.selType == type_) then
+  local selStart = Sel.selStart(sel)
+  local selEnd = Sel.selEnd(sel)
+  if not (Sel.hasSelection(sel) and ctx.state.selType == type_) then
     Sel.cancel(ctx)
   end
-  local extend = ctx.st.selExpand and ctx.st.selType == type_ and Sel.hasSelection(sel)
+  local extend = ctx.state.selExpand and ctx.state.selType == type_ and Sel.hasSelection(sel)
   local from
   if extend then
-    from = n < 0 and lo or hi
+    from = count < 0 and selStart or selEnd
   else
     from = sel.active
   end
   local target
-  if n > 0 then
-    target = text_.Words.nextEnd(text, from, n, text_.charPred(symbol))
+  if count > 0 then
+    target = text_.Words.nextEnd(text, from, count, text_.charPred(symbol))
   else
-    target = text_.Words.prevStart(text, from, -n, text_.charPred(symbol))
+    target = text_.Words.prevStart(text, from, -count, text_.charPred(symbol))
   end
   if target == from then
     return
   end
   local anchor
   if extend then
-    anchor = n < 0 and hi or lo
+    anchor = count < 0 and selEnd or selStart
   else
     anchor = text_.Words.fixSelectionMark(text, target, from, text_.charPred(symbol))
   end
@@ -279,25 +279,25 @@ end
 local SYMBOL_BOUNDARY = '\\%([0-9A-Za-z_$]\\)'
 
 local function markWord(ctx, symbol)
-  local neg = ctx.st:takeCount(1) < 0
+  local backward = ctx.state:takeCount(1) < 0
   local text = ctx.port:getText()
-  local b = text_.Words.boundsAt(text, Sel.primary(ctx).active, text_.charPred(symbol))
-  if b == nil then
+  local bounds = text_.Words.boundsAt(text, Sel.primary(ctx).active, text_.charPred(symbol))
+  if bounds == nil then
     ctx.ui:hint('No word here')
     return
   end
-  local s = b[1]
-  local e = b[2]
-  if neg then
-    Sel.select(ctx, wordType(symbol), e, s, true)
+  local wordStart = bounds[1]
+  local wordEnd = bounds[2]
+  if backward then
+    Sel.select(ctx, wordType(symbol), wordEnd, wordStart, true)
   else
-    Sel.select(ctx, wordType(symbol), s, e, true)
+    Sel.select(ctx, wordType(symbol), wordStart, wordEnd, true)
   end
-  local quoted = text_.regexQuote(text_.slice(text, s, e))
+  local quoted = text_.regexQuote(text_.slice(text, wordStart, wordEnd))
   if symbol then
-    Search.push(ctx.st, SYMBOL_BOUNDARY .. '\\@<!' .. quoted .. SYMBOL_BOUNDARY .. '\\@!')
+    Search.push(ctx.state, SYMBOL_BOUNDARY .. '\\@<!' .. quoted .. SYMBOL_BOUNDARY .. '\\@!')
   else
-    Search.push(ctx.st, '\\<' .. quoted .. '\\>')
+    Search.push(ctx.state, '\\<' .. quoted .. '\\>')
   end
 end
 
@@ -306,26 +306,25 @@ local function line(ctx)
   if #text == 0 then
     return
   end
-  local n = ctx.st:takeCount(1)
+  local count = ctx.state:takeCount(1)
   local lastLine = text_.lineCount(text) - 1
-  if ctx.st.selType == SelType.LINE and ctx.st.selExpand and Sel.hasSelection(Sel.primary(ctx)) then
-    local caretLn = text_.lineOfOffset(text, Sel.primary(ctx).active)
+  local caretLine = text_.lineOfOffset(text, Sel.primary(ctx).active)
+  if ctx.state.selType == SelType.LINE and ctx.state.selExpand and Sel.hasSelection(Sel.primary(ctx)) then
     if Sel.backwardP(ctx) then
-      local ln = math.max(caretLn - math.abs(n), 0)
-      Sel.select(ctx, SelType.LINE, Sel.mark(ctx), text_.lineStart(text, ln), true)
+      local targetLine = math.max(caretLine - math.abs(count), 0)
+      Sel.select(ctx, SelType.LINE, Sel.mark(ctx), text_.lineStart(text, targetLine), true)
     else
-      local ln = math.min(caretLn + math.abs(n), lastLine)
-      Sel.select(ctx, SelType.LINE, Sel.mark(ctx), text_.lineEnd(text, ln), true)
+      local targetLine = math.min(caretLine + math.abs(count), lastLine)
+      Sel.select(ctx, SelType.LINE, Sel.mark(ctx), text_.lineEnd(text, targetLine), true)
     end
     return
   end
-  local ln = text_.lineOfOffset(text, Sel.primary(ctx).active)
-  if n < 0 then
-    local startLn = math.max(ln + n + 1, 0)
-    Sel.select(ctx, SelType.LINE, text_.lineEnd(text, ln), text_.lineStart(text, startLn), true)
+  if count < 0 then
+    local firstLine = math.max(caretLine + count + 1, 0)
+    Sel.select(ctx, SelType.LINE, text_.lineEnd(text, caretLine), text_.lineStart(text, firstLine), true)
   else
-    local endLn = math.min(ln + n - 1, lastLine)
-    Sel.select(ctx, SelType.LINE, text_.lineStart(text, ln), text_.lineEnd(text, endLn), true)
+    local finalLine = math.min(caretLine + count - 1, lastLine)
+    Sel.select(ctx, SelType.LINE, text_.lineStart(text, caretLine), text_.lineEnd(text, finalLine), true)
   end
 end
 
@@ -338,62 +337,62 @@ local function gotoLine(ctx)
   if #text == 0 then
     return
   end
-  local ln = text_.parsedLineNumber(input, text_.lineCount(text))
-  if ln == nil then
+  local targetLine = text_.parsedLineNumber(input, text_.lineCount(text))
+  if targetLine == nil then
     return
   end
-  Sel.select(ctx, SelType.LINE, text_.lineStart(text, ln), text_.lineEnd(text, ln), true)
+  Sel.select(ctx, SelType.LINE, text_.lineStart(text, targetLine), text_.lineEnd(text, targetLine), true)
 end
 
-function M.findTill(ctx, ch, till)
-  local n = ctx.st:takeCount(1)
+function M.findTill(ctx, char, till)
+  local count = ctx.state:takeCount(1)
   local text = ctx.port:getText()
   local caret = Sel.primary(ctx).active
-  local target = text_.nthCharTarget(text, ch, caret, math.abs(n), n < 0, till)
+  local target = text_.nthCharTarget(text, char, caret, math.abs(count), count < 0, till)
   if target < 0 then
-    ctx.ui:hint('char not found: ' .. ch)
+    ctx.ui:hint('char not found: ' .. char)
     return
   end
-  ctx.st.lastFind = ch
+  ctx.state.lastFind = char
   Sel.select(ctx, till and SelType.TILL or SelType.FIND, caret, target, false)
 end
 
 M.commands = {
   ['meow-left'] = function(ctx)
-    moveChar(ctx, -ctx.st:takeCount(1))
+    moveChar(ctx, -ctx.state:takeCount(1))
   end,
   ['meow-right'] = function(ctx)
-    moveChar(ctx, ctx.st:takeCount(1))
+    moveChar(ctx, ctx.state:takeCount(1))
   end,
   ['meow-next'] = function(ctx)
-    moveLine(ctx, ctx.st:takeCount(1))
+    moveLine(ctx, ctx.state:takeCount(1))
   end,
   ['meow-prev'] = function(ctx)
-    moveLine(ctx, -ctx.st:takeCount(1))
+    moveLine(ctx, -ctx.state:takeCount(1))
   end,
   ['meow-left-expand'] = function(ctx)
-    moveExpand(ctx, -ctx.st:takeCount(1), 0)
+    moveExpand(ctx, -ctx.state:takeCount(1), 0)
   end,
   ['meow-right-expand'] = function(ctx)
-    moveExpand(ctx, ctx.st:takeCount(1), 0)
+    moveExpand(ctx, ctx.state:takeCount(1), 0)
   end,
   ['meow-next-expand'] = function(ctx)
-    moveExpand(ctx, 0, ctx.st:takeCount(1))
+    moveExpand(ctx, 0, ctx.state:takeCount(1))
   end,
   ['meow-prev-expand'] = function(ctx)
-    moveExpand(ctx, 0, -ctx.st:takeCount(1))
+    moveExpand(ctx, 0, -ctx.state:takeCount(1))
   end,
   ['meow-next-word'] = function(ctx)
-    wordMotion(ctx, false, ctx.st:takeCount(1))
+    wordMotion(ctx, false, ctx.state:takeCount(1))
   end,
   ['meow-next-symbol'] = function(ctx)
-    wordMotion(ctx, true, ctx.st:takeCount(1))
+    wordMotion(ctx, true, ctx.state:takeCount(1))
   end,
   ['meow-back-word'] = function(ctx)
-    wordMotion(ctx, false, -ctx.st:takeCount(1))
+    wordMotion(ctx, false, -ctx.state:takeCount(1))
   end,
   ['meow-back-symbol'] = function(ctx)
-    wordMotion(ctx, true, -ctx.st:takeCount(1))
+    wordMotion(ctx, true, -ctx.state:takeCount(1))
   end,
   ['meow-mark-word'] = function(ctx)
     markWord(ctx, false)
@@ -404,24 +403,24 @@ M.commands = {
   ['meow-line'] = line,
   ['meow-goto-line'] = gotoLine,
   ['meow-find'] = function(ctx)
-    ctx.st.pending = Pending.FIND
+    ctx.state.pending = Pending.FIND
   end,
   ['meow-till'] = function(ctx)
-    ctx.st.pending = Pending.TILL
+    ctx.state.pending = Pending.TILL
   end,
   ['forward-char'] = function(ctx)
-    charOrExpand(ctx, ctx.st:takeCount(1))
+    charOrExpand(ctx, ctx.state:takeCount(1))
   end,
   ['backward-char'] = function(ctx)
-    charOrExpand(ctx, -ctx.st:takeCount(1))
+    charOrExpand(ctx, -ctx.state:takeCount(1))
   end,
   ['next-line'] = function(ctx)
-    lineOrExpand(ctx, ctx.st:takeCount(1))
-    ctx.st.lastCommand = 'next-line'
+    lineOrExpand(ctx, ctx.state:takeCount(1))
+    ctx.state.lastCommand = 'next-line'
   end,
   ['previous-line'] = function(ctx)
-    lineOrExpand(ctx, -ctx.st:takeCount(1))
-    ctx.st.lastCommand = 'previous-line'
+    lineOrExpand(ctx, -ctx.state:takeCount(1))
+    ctx.state.lastCommand = 'previous-line'
   end,
   ['move-beginning-of-line'] = function(ctx)
     moveToOrExpand(ctx, SelType.CHAR, lineStartTarget)
@@ -433,16 +432,16 @@ M.commands = {
     moveToOrExpand(ctx, SelType.CHAR, indentationTarget)
   end,
   ['forward-word'] = function(ctx)
-    wordOrExpand(ctx, ctx.st:takeCount(1))
+    wordOrExpand(ctx, ctx.state:takeCount(1))
   end,
   ['backward-word'] = function(ctx)
-    wordOrExpand(ctx, -ctx.st:takeCount(1))
+    wordOrExpand(ctx, -ctx.state:takeCount(1))
   end,
   ['forward-sentence'] = function(ctx)
-    sentenceOrExpand(ctx, ctx.st:takeCount(1))
+    sentenceOrExpand(ctx, ctx.state:takeCount(1))
   end,
   ['backward-sentence'] = function(ctx)
-    sentenceOrExpand(ctx, -ctx.st:takeCount(1))
+    sentenceOrExpand(ctx, -ctx.state:takeCount(1))
   end,
   ['beginning-of-buffer'] = function(ctx)
     bufferBoundary(ctx, true)
@@ -451,10 +450,10 @@ M.commands = {
     bufferBoundary(ctx, false)
   end,
   ['forward-paragraph'] = function(ctx)
-    paragraphOrExpand(ctx, ctx.st:takeCount(1))
+    paragraphOrExpand(ctx, ctx.state:takeCount(1))
   end,
   ['backward-paragraph'] = function(ctx)
-    paragraphOrExpand(ctx, -ctx.st:takeCount(1))
+    paragraphOrExpand(ctx, -ctx.state:takeCount(1))
   end,
 }
 

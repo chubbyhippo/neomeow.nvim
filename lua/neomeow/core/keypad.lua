@@ -74,20 +74,20 @@ neomeow.lua settings: return { rc = { 'nmap <key> <action>(command)',
   file overrides them key by key
 ]]):match('^%s*(.-)%s*$')
 
-local function describe(ctx, c)
+local function describe(ctx, prefix)
   local descsMap = Rc.keypadDescs()
   local map, order = Rc.keypad()
   local seqs = {}
   for _, seq in ipairs(order) do
-    if seq:sub(1, #c) == c then
+    if seq:sub(1, #prefix) == prefix then
       table.insert(seqs, seq)
     end
   end
   table.sort(seqs)
   local lines = {}
   for _, seq in ipairs(seqs) do
-    local b = map[seq]
-    local target = b.action or b.command or b.keys or ''
+    local binding = map[seq]
+    local target = binding.action or binding.command or binding.keys or ''
     local desc = ''
     if descsMap[seq] ~= nil then
       desc = '  (' .. descsMap[seq] .. ')'
@@ -96,46 +96,46 @@ local function describe(ctx, c)
   end
   local body = table.concat(lines, '\n')
   if body == '' then
-    body = 'SPC ' .. c .. ' is undefined'
+    body = 'SPC ' .. prefix .. ' is undefined'
   end
-  ctx.ui:info('Meow Describe: SPC ' .. c, body)
+  ctx.ui:info('Meow Describe: SPC ' .. prefix, body)
 end
 
 function M.exit(ctx)
   ctx.ui:hideWhichKey()
-  port_.setMode(ctx, ctx.st.keypadPreviousState)
+  port_.setMode(ctx, ctx.state.keypadPreviousState)
 end
 
-function M.key(ctx, c)
-  local st = ctx.st
+function M.key(ctx, char)
+  local state = ctx.state
   ctx.ui:hideWhichKey()
   local map, order = Rc.keypad()
-  local buf = st.keypad
+  local buf = state.keypad
 
   if buf == '/' then
-    describe(ctx, c)
+    describe(ctx, char)
     M.exit(ctx)
     return
   end
   if buf == '' then
-    if c >= '0' and c <= '9' then
-      st.pendingCount = st.pendingCount * 10 + (c:byte() - string.byte('0'))
+    if char >= '0' and char <= '9' then
+      state.pendingCount = state.pendingCount * 10 + (char:byte() - string.byte('0'))
       M.exit(ctx)
       return
     end
-    if c == '?' then
+    if char == '?' then
       M.exit(ctx)
       ctx.ui:info('Meow Cheatsheet', M.CHEATSHEET)
       return
     end
-    if c == '/' then
-      st.keypad = st.keypad .. '/'
+    if char == '/' then
+      state.keypad = state.keypad .. '/'
       return
     end
   end
 
-  st.keypad = st.keypad .. c
-  local cur = st.keypad
+  state.keypad = state.keypad .. char
+  local cur = state.keypad
   local binding = map[cur]
   if binding ~= nil then
     M.exit(ctx)

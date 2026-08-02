@@ -40,12 +40,12 @@ local function bufLines(buf)
   return vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 end
 
-local function offsetToRC(buf, off)
+local function offsetToRC(buf, offset)
   local lines = bufLines(buf)
   local acc = 0
   for i, line in ipairs(lines) do
-    if off <= acc + #line then
-      return i - 1, off - acc
+    if offset <= acc + #line then
+      return i - 1, offset - acc
     end
     acc = acc + #line + 1
   end
@@ -75,27 +75,27 @@ local function makeRx()
       local out = {}
       local from = 0
       while from <= #text do
-        local ms, me = re:match_str(text:sub(from + 1))
-        if ms == nil then
+        local relativeStart, relativeEnd = re:match_str(text:sub(from + 1))
+        if relativeStart == nil then
           break
         end
-        local s0 = from + ms
-        local e0 = from + me
-        if e0 == s0 then
-          from = s0 + 1
+        local matchStart = from + relativeStart
+        local matchEnd = from + relativeEnd
+        if matchEnd == matchStart then
+          from = matchStart + 1
         else
-          table.insert(out, { start = s0, stop = e0 })
-          from = e0
+          table.insert(out, { start = matchStart, stop = matchEnd })
+          from = matchEnd
         end
       end
       return out
     end,
-    fullyMatches = function(pattern, s)
+    fullyMatches = function(pattern, text)
       local built, re = pcall(vim.regex, '\\%^\\%(' .. pattern .. '\\)\\%$')
       if not built then
         return false
       end
-      return re:match_str(s) ~= nil
+      return re:match_str(text) ~= nil
     end,
     isValid = function(pattern)
       return (pcall(vim.regex, pattern))
@@ -112,16 +112,16 @@ local function makePort(buf)
 
   function port:getSelections()
     local out = {}
-    for i, s in ipairs(self.sels) do
-      out[i] = { anchor = s.anchor, active = s.active }
+    for i, sel in ipairs(self.sels) do
+      out[i] = { anchor = sel.anchor, active = sel.active }
     end
     return out
   end
 
   function port:setSelections(sels)
     local out = {}
-    for i, s in ipairs(sels) do
-      out[i] = { anchor = s.anchor, active = s.active }
+    for i, sel in ipairs(sels) do
+      out[i] = { anchor = sel.anchor, active = sel.active }
     end
     self.sels = out
     local active = out[1].active
@@ -135,17 +135,17 @@ local function makePort(buf)
 
   function port.edit(_, edits)
     local ordered = {}
-    for i, e in ipairs(edits) do
-      ordered[i] = e
+    for i, edit in ipairs(edits) do
+      ordered[i] = edit
     end
     table.sort(ordered, function(a, b)
       return a.start > b.start
     end)
-    for _, e in ipairs(ordered) do
-      local sr, sc = offsetToRC(buf, e.start)
-      local er, ec = offsetToRC(buf, e.stop)
-      local parts = vim.split(e.text, '\n', { plain = true })
-      vim.api.nvim_buf_set_text(buf, sr, sc, er, ec, parts)
+    for _, edit in ipairs(ordered) do
+      local startRow, startCol = offsetToRC(buf, edit.start)
+      local endRow, endCol = offsetToRC(buf, edit.stop)
+      local parts = vim.split(edit.text, '\n', { plain = true })
+      vim.api.nvim_buf_set_text(buf, startRow, startCol, endRow, endCol, parts)
     end
   end
 
@@ -216,8 +216,8 @@ local function boundKeys()
   for k in pairs(Rc.cfg().normal) do
     set[k] = true
   end
-  for c = string.byte('0'), string.byte('9') do
-    set[string.char(c)] = true
+  for digit = string.byte('0'), string.byte('9') do
+    set[string.char(digit)] = true
   end
   set['-'] = true
   return set
@@ -229,13 +229,13 @@ local function syncCursorToState(ctx, buf)
     return
   end
   local pos = vim.api.nvim_win_get_cursor(win)
-  local off = rcToOffset(buf, pos[1] - 1, pos[2])
+  local offset = rcToOffset(buf, pos[1] - 1, pos[2])
   local sels = ctx.port:getSelections()
   local head = sels[1]
   if head.anchor == head.active then
-    ctx.port.sels[1] = { anchor = off, active = off }
+    ctx.port.sels[1] = { anchor = offset, active = offset }
   else
-    ctx.port.sels[1] = { anchor = head.anchor, active = off }
+    ctx.port.sels[1] = { anchor = head.anchor, active = offset }
   end
 end
 
@@ -296,18 +296,18 @@ function M.attach(buf)
     return nil
   end
 
-  local st = newState()
+  local state = newState()
   local port = makePort(buf)
   local ctx
   local ui = Uimod.make(function()
     return ctx
   end, buf)
-  ctx = { port = port, clipboard = makeClipboard(), ui = ui, rx = makeRx(), st = st }
+  ctx = { port = port, clipboard = makeClipboard(), ui = ui, rx = makeRx(), state = state }
   contexts[buf] = ctx
 
   vim.bo[buf].modifiable = attachpolicy.isWritableSurface(surface) and vim.bo[buf].modifiable
   vim.wo[vim.fn.bufwinid(buf) ~= -1 and vim.fn.bufwinid(buf) or 0].virtualedit = 'onemore'
-  vim.b[buf].neomeow_mode = st.mode
+  vim.b[buf].neomeow_mode = state.mode
 
   setNormalKeymaps(buf)
   setChordKeymaps(buf)
@@ -321,26 +321,26 @@ function M.attach(buf)
     vim.cmd('stopinsert')
   end, { buffer = buf, nowait = true, desc = 'neomeow keypad from INSERT' })
 
-  local grp = vim.api.nvim_create_augroup('neomeow-buf-' .. buf, { clear = true })
+  local group = vim.api.nvim_create_augroup('neomeow-buf-' .. buf, { clear = true })
   vim.api.nvim_create_autocmd('InsertLeave', {
-    group = grp,
+    group = group,
     buffer = buf,
     callback = function()
-      if st.mode == core.state.MeowMode.INSERT then
-        st.mode = core.state.MeowMode.NORMAL
-        ui:refresh(st)
+      if state.mode == core.state.MeowMode.INSERT then
+        state.mode = core.state.MeowMode.NORMAL
+        ui:refresh(state)
       end
     end,
   })
   vim.api.nvim_create_autocmd({ 'BufWipeout', 'BufDelete' }, {
-    group = grp,
+    group = group,
     buffer = buf,
     callback = function()
       contexts[buf] = nil
     end,
   })
 
-  ui:refresh(st)
+  ui:refresh(state)
   return ctx
 end
 

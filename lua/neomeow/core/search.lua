@@ -23,76 +23,76 @@ local M = {}
 
 local SEARCH_RING_LIMIT = 50
 
-function M.push(st, pattern)
+function M.push(state, pattern)
   local kept = {}
-  for _, p in ipairs(st.searchHistory) do
-    if p ~= pattern then
-      table.insert(kept, p)
+  for _, previous in ipairs(state.searchHistory) do
+    if previous ~= pattern then
+      table.insert(kept, previous)
     end
   end
   table.insert(kept, pattern)
   while #kept > SEARCH_RING_LIMIT do
     table.remove(kept, 1)
   end
-  st.searchHistory = kept
+  state.searchHistory = kept
 end
 
 local function searchWith(ctx, pattern, backward)
   local text = ctx.port:getText()
   local caret = Sel.primary(ctx).active
   local matches = ctx.rx.allMatches(pattern, text)
-  local m
+  local matched
   if not backward then
-    for _, x in ipairs(matches) do
-      if x.start >= caret then
-        m = x
+    for _, candidate in ipairs(matches) do
+      if candidate.start >= caret then
+        matched = candidate
         break
       end
     end
-    if m == nil then
-      m = matches[1]
+    if matched == nil then
+      matched = matches[1]
     end
   else
-    for _, x in ipairs(matches) do
-      if x.stop <= caret then
-        m = x
+    for _, candidate in ipairs(matches) do
+      if candidate.stop <= caret then
+        matched = candidate
       end
     end
-    if m == nil then
-      m = matches[#matches]
+    if matched == nil then
+      matched = matches[#matches]
     end
   end
-  if m == nil then
+  if matched == nil then
     ctx.ui:hint('No match: ' .. pattern)
     return
   end
   if not backward then
-    Sel.select(ctx, SelType.VISIT, m.start, m.stop, false)
+    Sel.select(ctx, SelType.VISIT, matched.start, matched.stop, false)
   else
-    Sel.select(ctx, SelType.VISIT, m.stop, m.start, false)
+    Sel.select(ctx, SelType.VISIT, matched.stop, matched.start, false)
   end
 end
 
 local function search(ctx)
-  local st = ctx.st
+  local state = ctx.state
   local sel = Sel.primary(ctx)
-  local pattern = st.searchHistory[#st.searchHistory]
+  local pattern = state.searchHistory[#state.searchHistory]
   if Sel.hasSelection(sel) then
-    local selText = text_.slice(ctx.port:getText(), Sel.lo(sel), Sel.hi(sel))
+    local selText = text_.slice(ctx.port:getText(), Sel.selStart(sel), Sel.selEnd(sel))
     if #selText > 0 and (pattern == nil or not ctx.rx.fullyMatches(pattern, selText)) then
       pattern = text_.regexQuote(selText)
-      M.push(st, pattern)
+      M.push(state, pattern)
     end
   end
   if pattern == nil then
     ctx.ui:hint('No search pattern')
     return
   end
-  searchWith(ctx, pattern, st:takeCount(1) < 0 or Sel.backwardP(ctx))
+  searchWith(ctx, pattern, state:takeCount(1) < 0 or Sel.backwardP(ctx))
 end
 
 local function visit(ctx)
-  local backward = ctx.st:takeCount(1) < 0
+  local backward = ctx.state:takeCount(1) < 0
   local input = ctx.ui:input('Visit (regexp):')
   if input == nil or input == '' then
     return
@@ -101,7 +101,7 @@ local function visit(ctx)
   if not ctx.rx.isValid(pattern) then
     pattern = text_.regexQuote(input)
   end
-  M.push(ctx.st, pattern)
+  M.push(ctx.state, pattern)
   searchWith(ctx, pattern, backward)
 end
 

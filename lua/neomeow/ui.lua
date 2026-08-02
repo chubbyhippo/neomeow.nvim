@@ -44,12 +44,12 @@ local function setHighlights()
   ensure('NeomeowHint', { fg = '#ffffff', bg = Rc.expandHintColor(), bold = true, default = true })
 end
 
-local function offsetToRC(buf, off)
+local function offsetToRC(buf, offset)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local acc = 0
   for i, line in ipairs(lines) do
-    if off <= acc + #line then
-      return i - 1, off - acc
+    if offset <= acc + #line then
+      return i - 1, offset - acc
     end
     acc = acc + #line + 1
   end
@@ -90,9 +90,9 @@ function M.make(getCtx, buf)
     markRange(grabRange, 'NeomeowGrab')
     local ctx = getCtx()
     for _, sel in ipairs(ctx.port:getSelections()) do
-      local lo = Sel.lo(sel)
-      local hi = Sel.hi(sel)
-      markRange({ start = lo, stop = hi }, 'NeomeowSelection')
+      local selStart = Sel.selStart(sel)
+      local selEnd = Sel.selEnd(sel)
+      markRange({ start = selStart, stop = selEnd }, 'NeomeowSelection')
     end
   end
 
@@ -112,16 +112,16 @@ function M.make(getCtx, buf)
 
   function ui.info(_, title, body)
     local lines = { title, string.rep('-', #title) }
-    for _, l in ipairs(vim.split(body, '\n', { plain = true })) do
-      table.insert(lines, l)
+    for _, bodyLine in ipairs(vim.split(body, '\n', { plain = true })) do
+      table.insert(lines, bodyLine)
     end
     local scratch = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(scratch, 0, -1, false, lines)
     vim.bo[scratch].modifiable = false
     vim.bo[scratch].bufhidden = 'wipe'
     local width = 0
-    for _, l in ipairs(lines) do
-      width = math.max(width, vim.fn.strdisplaywidth(l))
+    for _, line in ipairs(lines) do
+      width = math.max(width, vim.fn.strdisplaywidth(line))
     end
     local height = math.min(#lines, vim.o.lines - 4)
     local fwin = vim.api.nvim_open_win(scratch, true, {
@@ -174,16 +174,16 @@ function M.make(getCtx, buf)
       return
     end
     local lines = {}
-    for _, r in ipairs(rows) do
-      table.insert(lines, string.format(' %s  %s', r[1], r[2]))
+    for _, row in ipairs(rows) do
+      table.insert(lines, string.format(' %s  %s', row[1], row[2]))
     end
     local scratch = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(scratch, 0, -1, false, lines)
     vim.bo[scratch].modifiable = false
     vim.bo[scratch].bufhidden = 'wipe'
     local width = 0
-    for _, l in ipairs(lines) do
-      width = math.max(width, vim.fn.strdisplaywidth(l))
+    for _, line in ipairs(lines) do
+      width = math.max(width, vim.fn.strdisplaywidth(line))
     end
     if whichKeyWin ~= nil and vim.api.nvim_win_is_valid(whichKeyWin) then
       vim.api.nvim_win_close(whichKeyWin, true)
@@ -222,12 +222,12 @@ function M.make(getCtx, buf)
   end
 
   function ui.showExpandHints(_, positions)
-    for i, off in ipairs(positions) do
+    for i, offset in ipairs(positions) do
       if i > 9 then
         break
       end
-      local r, c = offsetToRC(buf, off)
-      vim.api.nvim_buf_set_extmark(buf, ns, r, c, {
+      local row, col = offsetToRC(buf, offset)
+      vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
         virt_text = { { tostring(i), 'NeomeowHint' } },
         virt_text_pos = 'overlay',
         priority = 300,
@@ -249,9 +249,9 @@ function M.make(getCtx, buf)
   function ui.showAvyLabels(_, labels)
     clearNs()
     for _, pair in ipairs(labels) do
-      local off, label = pair[1], pair[2]
-      local r, c = offsetToRC(buf, off)
-      vim.api.nvim_buf_set_extmark(buf, ns, r, c, {
+      local offset, label = pair[1], pair[2]
+      local row, col = offsetToRC(buf, offset)
+      vim.api.nvim_buf_set_extmark(buf, ns, row, col, {
         virt_text = { { label, 'NeomeowAvyLead' } },
         virt_text_pos = 'overlay',
         priority = 300,
@@ -268,19 +268,19 @@ function M.make(getCtx, buf)
     repaintSelection()
   end
 
-  function ui.modeChanged(_, st)
-    if st.mode == MeowMode.INSERT then
+  function ui.modeChanged(_, state)
+    if state.mode == MeowMode.INSERT then
       if vim.api.nvim_get_mode().mode:sub(1, 1) ~= 'i' and vim.api.nvim_get_current_buf() == buf then
         vim.cmd('startinsert')
       end
     end
-    vim.b[buf].neomeow_mode = st.mode
+    vim.b[buf].neomeow_mode = state.mode
     vim.cmd('redrawstatus')
   end
 
-  function ui.refresh(_, st)
+  function ui.refresh(_, state)
     repaintSelection()
-    vim.b[buf].neomeow_mode = st.mode
+    vim.b[buf].neomeow_mode = state.mode
     vim.cmd('redrawstatus')
   end
 
@@ -295,9 +295,9 @@ function M.make(getCtx, buf)
   end
 
   function ui.cancelTimer(_, id)
-    local t = timers[id]
-    if t ~= nil then
-      t:stop()
+    local timer = timers[id]
+    if timer ~= nil then
+      timer:stop()
       timers[id] = nil
     end
   end

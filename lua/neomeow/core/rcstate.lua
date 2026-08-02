@@ -17,27 +17,27 @@
 
 local M = {}
 
-local state = nil
+local savedConfig = nil
 
-local function esc(s)
-  return (tostring(s):gsub('[%%|;]', function(ch)
-    return '%' .. string.byte(ch)
+local function esc(value)
+  return (tostring(value):gsub('[%%|;]', function(char)
+    return '%' .. string.byte(char)
   end))
 end
 
-local function bindingRepr(b)
+local function bindingRepr(binding)
   return table.concat({
-    'a=' .. esc(b.action == nil and '' or b.action),
-    'k=' .. esc(b.keys == nil and '' or b.keys),
-    'c=' .. esc(b.command == nil and '' or b.command),
-    'r=' .. tostring(b.recursive),
+    'a=' .. esc(binding.action == nil and '' or binding.action),
+    'k=' .. esc(binding.keys == nil and '' or binding.keys),
+    'c=' .. esc(binding.command == nil and '' or binding.command),
+    'r=' .. tostring(binding.recursive),
   }, ',')
 end
 
 local function sortedKeys(map)
   local keys = {}
-  for k in pairs(map) do
-    table.insert(keys, k)
+  for key in pairs(map) do
+    table.insert(keys, key)
   end
   table.sort(keys)
   return keys
@@ -45,39 +45,39 @@ end
 
 local function mapRepr(map, valueRepr)
   local parts = {}
-  for _, k in ipairs(sortedKeys(map)) do
-    table.insert(parts, esc(k) .. '=>' .. valueRepr(map[k]))
+  for _, key in ipairs(sortedKeys(map)) do
+    table.insert(parts, esc(key) .. '=>' .. valueRepr(map[key]))
   end
   return table.concat(parts, ';')
 end
 
-local function serialize(c)
+local function serialize(config)
   local parts = {
-    mapRepr(c.normal, bindingRepr),
-    mapRepr(c.motion, bindingRepr),
-    mapRepr(c.keypad, bindingRepr),
-    mapRepr(c.keypadDesc, esc),
+    mapRepr(config.normal, bindingRepr),
+    mapRepr(config.motion, bindingRepr),
+    mapRepr(config.keypad, bindingRepr),
+    mapRepr(config.keypadDesc, esc),
   }
   local groups = {}
-  for _, g in ipairs(sortedKeys(c.repeatGroups)) do
-    table.insert(groups, esc(g) .. '=>' .. mapRepr(c.repeatGroups[g].map, bindingRepr))
+  for _, group in ipairs(sortedKeys(config.repeatGroups)) do
+    table.insert(groups, esc(group) .. '=>' .. mapRepr(config.repeatGroups[group].map, bindingRepr))
   end
   table.insert(parts, table.concat(groups, '&'))
-  table.insert(parts, tostring(c.whichKey))
-  table.insert(parts, tostring(c.whichKeyDelayMs))
+  table.insert(parts, tostring(config.whichKey))
+  table.insert(parts, tostring(config.whichKeyDelayMs))
   return table.concat(parts, '|')
 end
 
-function M.saveParsed(c)
-  state = serialize(c)
+function M.saveParsed(config)
+  savedConfig = serialize(config)
 end
 
-function M.equalTo(c)
-  return state ~= nil and serialize(c) == state
+function M.equalTo(config)
+  return savedConfig ~= nil and serialize(config) == savedConfig
 end
 
 function M.resetForTest()
-  state = nil
+  savedConfig = nil
 end
 
 return M

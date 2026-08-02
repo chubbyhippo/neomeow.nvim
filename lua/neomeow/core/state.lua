@@ -93,12 +93,12 @@ function M.newState()
 end
 
 function MeowState:takeCount(default)
-  local def = default == nil and 1 or default
-  local n = self.pendingCount == 0 and def or self.pendingCount
-  local r = self.negative and -n or n
+  local fallback = default == nil and 1 or default
+  local count = self.pendingCount == 0 and fallback or self.pendingCount
+  local signed = self.negative and -count or count
   self.pendingCount = 0
   self.negative = false
-  return r
+  return signed
 end
 
 return M

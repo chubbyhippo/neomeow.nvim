@@ -38,7 +38,7 @@ function M.claims(mode, chord)
 end
 
 function M.dispatch(ctx, chord)
-  if not M.claims(ctx.st.mode, chord) then
+  if not M.claims(ctx.state.mode, chord) then
     return false
   end
   local binding = M.bindingFor(chord)

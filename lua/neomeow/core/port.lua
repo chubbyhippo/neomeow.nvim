@@ -18,11 +18,11 @@
 local M = {}
 
 function M.setMode(ctx, mode)
-  ctx.st.mode = mode
+  ctx.state.mode = mode
   if mode ~= 'KEYPAD' then
-    ctx.st.keypad = ''
+    ctx.state.keypad = ''
   end
-  ctx.ui:modeChanged(ctx.st)
+  ctx.ui:modeChanged(ctx.state)
 end
 
 return M

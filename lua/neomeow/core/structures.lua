@@ -16,73 +16,74 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
 local text_ = require('neomeow.core.text')
-local state = require('neomeow.core.state')
-local SelType = state.SelType
-local Pending = state.Pending
+local State = require('neomeow.core.state')
+local SelType = State.SelType
+local Pending = State.Pending
 local Things = require('neomeow.core.things').Things
 local Sel = require('neomeow.core.selections')
 
 local M = {}
 
-local function pendThing(ctx, p)
-  ctx.st.pending = p
+local function pendThing(ctx, pending)
+  ctx.state.pending = pending
   ctx.ui:scheduleWhichKey('things', '')
 end
 
-function M.thingSelect(ctx, kind, ch)
-  local off = Sel.primary(ctx).active
-  local b
+function M.thingSelect(ctx, kind, char)
+  local caret = Sel.primary(ctx).active
+  local bounds
   if kind == Pending.BOUNDS then
-    b = Things.bounds(ctx, ch, off)
+    bounds = Things.bounds(ctx, char, caret)
   else
-    b = Things.inner(ctx, ch, off)
+    bounds = Things.inner(ctx, char, caret)
   end
-  if b == nil then
-    ctx.ui:hint("No thing '" .. ch .. "' here")
+  if bounds == nil then
+    ctx.ui:hint("No thing '" .. char .. "' here")
     return
   end
   if kind == Pending.INNER then
-    Sel.select(ctx, SelType.TRANSIENT, b.start, b.stop, false)
+    Sel.select(ctx, SelType.TRANSIENT, bounds.start, bounds.stop, false)
   elseif kind == Pending.BOUNDS then
-    Sel.select(ctx, SelType.TRANSIENT, b.stop, b.start, false)
+    Sel.select(ctx, SelType.TRANSIENT, bounds.stop, bounds.start, false)
   elseif kind == Pending.BEGIN then
-    Sel.select(ctx, SelType.TRANSIENT, off, b.start, false)
+    Sel.select(ctx, SelType.TRANSIENT, caret, bounds.start, false)
   elseif kind == Pending.END_ then
-    Sel.select(ctx, SelType.TRANSIENT, off, b.stop, false)
+    Sel.select(ctx, SelType.TRANSIENT, caret, bounds.stop, false)
   end
 end
 
-local function enclosingPair(text, s, e)
+local function enclosingPair(text, selStart, selEnd)
   local opens = '([{'
   local closes = ')]}'
   local stack = {}
   local best = nil
   local i = 0
   while i < #text do
-    local c = text_.charAt(text, i)
-    if c == '"' or c == "'" or c == '`' then
+    local char = text_.charAt(text, i)
+    if char == '"' or char == "'" or char == '`' then
       local j = i + 1
-      while j < #text and text_.charAt(text, j) ~= c and text_.charAt(text, j) ~= '\n' do
+      while j < #text and text_.charAt(text, j) ~= char and text_.charAt(text, j) ~= '\n' do
         if text_.charAt(text, j) == '\\' then
           j = j + 1
         end
         j = j + 1
       end
-      if j < #text and text_.charAt(text, j) == c then
+      if j < #text and text_.charAt(text, j) == char then
         i = j + 1
       else
         i = i + 1
       end
     else
-      if opens:find(c, 1, true) ~= nil then
+      if opens:find(char, 1, true) ~= nil then
         table.insert(stack, i)
-      elseif closes:find(c, 1, true) ~= nil then
-        local kind = closes:find(c, 1, true)
+      elseif closes:find(char, 1, true) ~= nil then
+        local kind = closes:find(char, 1, true)
         while #stack > 0 do
-          local o = table.remove(stack)
-          if opens:find(text_.charAt(text, o), 1, true) == kind then
-            if o < s and i + 1 >= e and (best == nil or i - o < best.close - best.open) then
-              best = { open = o, close = i }
+          local openOffset = table.remove(stack)
+          if opens:find(text_.charAt(text, openOffset), 1, true) == kind then
+            local narrower = best == nil or i - openOffset < best.close - best.open
+            if openOffset < selStart and i + 1 >= selEnd and narrower then
+              best = { open = openOffset, close = i }
             end
             break
           end
@@ -97,42 +98,46 @@ end
 local function block(ctx)
   local text = ctx.port:getText()
   local sel = Sel.primary(ctx)
-  local active = ctx.st.selType == SelType.BLOCK and Sel.hasSelection(sel)
-  local back = Sel.backwardP(ctx) ~= (ctx.st:takeCount(1) < 0)
-  local s = active and Sel.lo(sel) or sel.active
-  local e = active and Sel.hi(sel) or sel.active
-  local p = enclosingPair(text, s, e)
-  if p == nil then
+  local active = ctx.state.selType == SelType.BLOCK and Sel.hasSelection(sel)
+  local back = Sel.backwardP(ctx) ~= (ctx.state:takeCount(1) < 0)
+  local selStart = active and Sel.selStart(sel) or sel.active
+  local selEnd = active and Sel.selEnd(sel) or sel.active
+  local braces = enclosingPair(text, selStart, selEnd)
+  if braces == nil then
     ctx.ui:hint('No enclosing block')
     return
   end
   if back then
-    Sel.select(ctx, SelType.BLOCK, p.close + 1, p.open, true)
+    Sel.select(ctx, SelType.BLOCK, braces.close + 1, braces.open, true)
   else
-    Sel.select(ctx, SelType.BLOCK, p.open, p.close + 1, true)
+    Sel.select(ctx, SelType.BLOCK, braces.open, braces.close + 1, true)
   end
 end
 
 local function toBlock(ctx)
   local text = ctx.port:getText()
-  local back = (ctx.st.selType == SelType.BLOCK and Sel.backwardP(ctx)) or ctx.st:takeCount(1) < 0
+  local back = (ctx.state.selType == SelType.BLOCK and Sel.backwardP(ctx)) or ctx.state:takeCount(1) < 0
   local caret = Sel.primary(ctx).active
-  local p = enclosingPair(text, caret, caret)
-  if p == nil then
+  local braces = enclosingPair(text, caret, caret)
+  if braces == nil then
     ctx.ui:hint('No enclosing block')
     return
   end
-  Sel.select(ctx, SelType.BLOCK, caret, back and p.open or (p.close + 1), true)
+  Sel.select(ctx, SelType.BLOCK, caret, back and braces.open or (braces.close + 1), true)
+end
+
+local function firstNonBlankOffset(text, line)
+  local offset = text_.lineStart(text, line)
+  local eol = text_.lineEnd(text, line)
+  while offset < eol and text_.charAt(text, offset):match('^%s$') ~= nil do
+    offset = offset + 1
+  end
+  return offset
 end
 
 local function selectJoin(ctx, text, markLine, pointLine)
   local mark = text_.lineEnd(text, markLine)
-  local point = text_.lineStart(text, pointLine)
-  local eol = text_.lineEnd(text, pointLine)
-  while point < eol and text_.charAt(text, point):match('^%s$') ~= nil do
-    point = point + 1
-  end
-  Sel.select(ctx, SelType.JOIN, mark, point, true)
+  Sel.select(ctx, SelType.JOIN, mark, firstNonBlankOffset(text, pointLine), true)
 end
 
 local function join(ctx)
@@ -140,30 +145,30 @@ local function join(ctx)
   if #text == 0 then
     return
   end
-  local n = ctx.st:takeCount(1)
-  local function blank(l)
-    return text_.isBlankLine(text, l)
+  local count = ctx.state:takeCount(1)
+  local function blank(lineIndex)
+    return text_.isBlankLine(text, lineIndex)
   end
-  local ln = text_.lineOfOffset(text, Sel.primary(ctx).active)
-  if n >= 0 then
-    local pl = ln - 1
-    while pl >= 0 and blank(pl) do
-      pl = pl - 1
+  local caretLine = text_.lineOfOffset(text, Sel.primary(ctx).active)
+  if count >= 0 then
+    local previousLine = caretLine - 1
+    while previousLine >= 0 and blank(previousLine) do
+      previousLine = previousLine - 1
     end
-    if pl < 0 then
+    if previousLine < 0 then
       return
     end
-    selectJoin(ctx, text, pl, ln)
+    selectJoin(ctx, text, previousLine, caretLine)
   else
-    local last = text_.lineCount(text) - 1
-    local nl = ln + 1
-    while nl <= last and blank(nl) do
-      nl = nl + 1
+    local lastLine = text_.lineCount(text) - 1
+    local nextLine = caretLine + 1
+    while nextLine <= lastLine and blank(nextLine) do
+      nextLine = nextLine + 1
     end
-    if nl > last then
+    if nextLine > lastLine then
       return
     end
-    selectJoin(ctx, text, ln, nl)
+    selectJoin(ctx, text, caretLine, nextLine)
   end
 end
 

@@ -27,10 +27,10 @@ end
 
 M.register({
   ['meow-negative-argument'] = function(ctx)
-    ctx.st.negative = true
+    ctx.state.negative = true
   end,
   ['negative-argument'] = function(ctx)
-    ctx.st.negative = true
+    ctx.state.negative = true
   end,
   ['meow-quit'] = function(ctx)
     ctx.port:closeEditor()

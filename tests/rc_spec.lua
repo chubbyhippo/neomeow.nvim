@@ -93,47 +93,47 @@ local QWERTY = {
 
 describe('RcSpec', function()
   it('given an action mapping then it parses into a normal override', function()
-    local c = Rc.parse({ 'nmap S <action>(extension.aceJump)' })
-    h.eq(c.normal['S'].action, 'extension.aceJump')
-    h.eqList(c.errors, {})
+    local config = Rc.parse({ 'nmap S <action>(extension.aceJump)' })
+    h.eq(config.normal['S'].action, 'extension.aceJump')
+    h.eqList(config.errors, {})
   end)
 
   it('given a key-sequence mapping then it parses as replay keys', function()
-    local c = Rc.parse({ 'nmap Z ,b' })
-    h.eq(c.normal['Z'].keys, ',b')
-    h.eq(c.normal['Z'].recursive, true)
+    local config = Rc.parse({ 'nmap Z ,b' })
+    h.eq(config.normal['Z'].keys, ',b')
+    h.eq(config.normal['Z'].recursive, true)
   end)
 
   it('given nnoremap then the binding is non-recursive', function()
-    local c = Rc.parse({ 'nnoremap Z ,b' })
-    h.eq(c.normal['Z'].recursive, false)
+    local config = Rc.parse({ 'nnoremap Z ,b' })
+    h.eq(config.normal['Z'].recursive, false)
   end)
 
   it('given a meow command name then it parses into a command binding', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'nmap n meow-mark-word',
       'nmap d ignore',
       'nmap Z repeat',
     })
-    h.eq(c.normal['n'].command, 'meow-mark-word')
-    h.eq(c.normal['d'].command, 'ignore')
-    h.eq(c.normal['Z'].command, 'repeat')
-    h.eqList(c.errors, {})
+    h.eq(config.normal['n'].command, 'meow-mark-word')
+    h.eq(config.normal['d'].command, 'ignore')
+    h.eq(config.normal['Z'].command, 'repeat')
+    h.eqList(config.errors, {})
   end)
 
   it('given mmap then the binding lands in the motion map', function()
-    local c = Rc.parse({ 'mmap n meow-next', 'mnoremap e k' })
-    h.eq(c.motion['n'].command, 'meow-next')
-    h.eq(c.motion['e'].keys, 'k')
-    h.eq(c.motion['e'].recursive, false)
-    h.eq(size(c.normal), 0)
-    h.eqList(c.errors, {})
+    local config = Rc.parse({ 'mmap n meow-next', 'mnoremap e k' })
+    h.eq(config.motion['n'].command, 'meow-next')
+    h.eq(config.motion['e'].keys, 'k')
+    h.eq(config.motion['e'].recursive, false)
+    h.eq(size(config.normal), 0)
+    h.eqList(config.errors, {})
   end)
 
   it('given an unknown meow command then an error is collected', function()
-    local c = Rc.parse({ 'nmap Z meow-frobnicate' })
-    h.eq(#c.errors, 1)
-    h.ok(c.errors[1]:find('meow-frobnicate', 1, true))
+    local config = Rc.parse({ 'nmap Z meow-frobnicate' })
+    h.eq(#config.errors, 1)
+    h.ok(config.errors[1]:find('meow-frobnicate', 1, true))
   end)
 
   it('given comment-only rc edits then the reload button reports no changes', function()
@@ -145,9 +145,9 @@ describe('RcSpec', function()
 
   it('given a parameterized action then the whole serialized command is kept', function()
     local id = 'com.example.showView(com.example.viewId=com.example.SomeView,com.example.focus=true)'
-    local c = Rc.parse({ 'map <leader>bj <action>(' .. id .. ')' })
-    h.eq(c.keypad['bj'].action, id)
-    h.eqList(c.errors, {})
+    local config = Rc.parse({ 'map <leader>bj <action>(' .. id .. ')' })
+    h.eq(config.keypad['bj'].action, id)
+    h.eqList(config.errors, {})
   end)
 
   it('given leader mappings and descriptions then the keypad table extends', function()
@@ -168,33 +168,33 @@ describe('RcSpec', function()
   end)
 
   it('given the ideavimrc WhichKeyDesc let syntax then descriptions parse', function()
-    local c = Rc.parse({ 'let g:WhichKeyDesc_leader_x = "<leader>x C-x files/buffers"' })
-    h.eq(c.keypadDesc['x'], 'C-x files/buffers')
-    h.eqList(c.errors, {})
+    local config = Rc.parse({ 'let g:WhichKeyDesc_leader_x = "<leader>x C-x files/buffers"' })
+    h.eq(config.keypadDesc['x'], 'C-x files/buffers')
+    h.eqList(config.errors, {})
   end)
 
   it('given a cmap or cnoremap line then the rc binds the chord', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'cmap <C-h> backward-char',
       'cnoremap <C-x> <action>(SomeChord)',
       'nmap Z ,b',
     })
-    h.eqList(c.errors, {})
-    h.eq(c.chords['C-h'].command, 'backward-char')
-    h.eq(c.chords['C-x'].action, 'SomeChord')
-    h.eq(c.normal['Z'].keys, ',b')
+    h.eqList(config.errors, {})
+    h.eq(config.chords['C-h'].command, 'backward-char')
+    h.eq(config.chords['C-x'].action, 'SomeChord')
+    h.eq(config.normal['Z'].keys, ',b')
   end)
 
   it('given set lines then which-key options apply and vim options are ignored', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'set nowhich-key',
       'set timeoutlen=400',
       'set clipboard+=unnamedplus',
       'let mapleader=" "',
     })
-    h.eq(c.whichKey, false)
-    h.eq(c.whichKeyDelayMs, 400)
-    h.eqList(c.errors, {})
+    h.eq(config.whichKey, false)
+    h.eq(config.whichKeyDelayMs, 400)
+    h.eqList(config.errors, {})
   end)
 
   it('which-key settings layer user over bundled defaults', function()
@@ -207,31 +207,31 @@ describe('RcSpec', function()
   end)
 
   it('given overlay color set lines then they parse into rgb colors', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'set overlay-color=#E52B50',
       'set overlay-text-color=#ffffff',
       'set expand-hint-color=#d05c0a',
       'set grab-color=#CDE8CD',
     })
-    h.eq(c.overlayColor, '#e52b50')
-    h.eq(c.overlayTextColor, '#ffffff')
-    h.eq(c.expandHintColor, '#d05c0a')
-    h.eq(c.grabColor, '#cde8cd')
-    h.eqList(c.errors, {})
+    h.eq(config.overlayColor, '#e52b50')
+    h.eq(config.overlayTextColor, '#ffffff')
+    h.eq(config.expandHintColor, '#d05c0a')
+    h.eq(config.grabColor, '#cde8cd')
+    h.eqList(config.errors, {})
   end)
 
   it('given a malformed overlay color then an error is collected and it stays unset', function()
-    local c = Rc.parse({ 'set overlay-color=#12345', 'set grab-color=nope' })
-    h.eq(c.overlayColor, nil)
-    h.eq(c.grabColor, nil)
-    h.eq(#c.errors, 2)
-    h.ok(c.errors[1]:find('overlay-color', 1, true))
+    local config = Rc.parse({ 'set overlay-color=#12345', 'set grab-color=nope' })
+    h.eq(config.overlayColor, nil)
+    h.eq(config.grabColor, nil)
+    h.eq(#config.errors, 2)
+    h.ok(config.errors[1]:find('overlay-color', 1, true))
   end)
 
   it('given an unknown set color option then it is ignored without error', function()
-    local c = Rc.parse({ 'set cursor-color=#123456' })
-    h.eq(c.overlayColor, nil)
-    h.eqList(c.errors, {})
+    local config = Rc.parse({ 'set cursor-color=#123456' })
+    h.eq(config.overlayColor, nil)
+    h.eqList(config.errors, {})
   end)
 
   it('overlay colors layer user over the bundled default', function()
@@ -244,13 +244,13 @@ describe('RcSpec', function()
   end)
 
   it('given a trailing comment then it is stripped from the line', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'nmap S <action>(extension.aceJump)   " jump anywhere',
       'map <leader>zz ,b            " select the buffer',
     })
-    h.eq(c.normal['S'].action, 'extension.aceJump')
-    h.eq(c.keypad['zz'].keys, ',b')
-    h.eqList(c.errors, {})
+    h.eq(config.normal['S'].action, 'extension.aceJump')
+    h.eq(config.keypad['zz'].keys, ',b')
+    h.eqList(config.errors, {})
   end)
 
   it('the bundled rc defines the whole keymap', function()
@@ -275,15 +275,15 @@ describe('RcSpec', function()
   end)
 
   it('given bad lines then errors are collected with line numbers', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'frobnicate everything',
       'nmap <Space> ,b',
       'map <leader>1 <action>(X)',
       'nmap Q <CR>',
       'mmap <leader>x ,b',
     })
-    h.eq(#c.errors, 5)
-    h.ok(c.errors[1]:sub(1, 6) == 'line 1')
+    h.eq(#config.errors, 5)
+    h.ok(config.errors[1]:sub(1, 6) == 'line 1')
   end)
 
   it('given an rc key-sequence override then the key replays through the engine', function()
@@ -355,7 +355,7 @@ describe('RcSpec', function()
     local s = h.freshSpec()
     s:given('three lines', '<caret>one\ntwo\nthree')
     s:givenRc('mmap n meow-next')
-    s.st.mode = MeowMode.MOTION
+    s.state.mode = MeowMode.MOTION
     s:whenKeys('n')
     h.eq(s:caretLine(), 1)
     s:whenKeys('j')

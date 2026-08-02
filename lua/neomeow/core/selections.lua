@@ -41,11 +41,11 @@ function M.hasSelection(sel)
   return sel.anchor ~= sel.active
 end
 
-function M.lo(sel)
+function M.selStart(sel)
   return math.min(sel.anchor, sel.active)
 end
 
-function M.hi(sel)
+function M.selEnd(sel)
   return math.max(sel.anchor, sel.active)
 end
 
@@ -67,20 +67,20 @@ local function sameSaved(a, b)
 end
 
 function M.recordSelect(ctx, type_, anchor, active, expand, posBefore)
-  local st = ctx.st
-  local prev = st.lastSelection
+  local state = ctx.state
+  local prev = state.lastSelection
   if prev == nil then
     local at = posBefore == nil and active or posBefore
     prev = { type = nil, expand = false, anchor = at, active = at }
   end
-  local head = st.selectionHistory[#st.selectionHistory]
+  local head = state.selectionHistory[#state.selectionHistory]
   if head == nil or not sameSaved(head, prev) then
-    table.insert(st.selectionHistory, prev)
+    table.insert(state.selectionHistory, prev)
   end
-  while #st.selectionHistory > SELECTION_HISTORY_LIMIT do
-    table.remove(st.selectionHistory, 1)
+  while #state.selectionHistory > SELECTION_HISTORY_LIMIT do
+    table.remove(state.selectionHistory, 1)
   end
-  st.lastSelection = { type = type_, expand = expand, anchor = anchor, active = active }
+  state.lastSelection = { type = type_, expand = expand, anchor = anchor, active = active }
 end
 
 function M.select(ctx, type_, markOff, point, expand, push)
@@ -88,40 +88,40 @@ function M.select(ctx, type_, markOff, point, expand, push)
     push = true
   end
   local port = ctx.port
-  local st = ctx.st
+  local state = ctx.state
   local len = #port:getText()
-  local m = text_.clamp(markOff, 0, len)
-  local p = text_.clamp(point, 0, len)
+  local anchor = text_.clamp(markOff, 0, len)
+  local active = text_.clamp(point, 0, len)
   local sels = port:getSelections()
   if push then
-    M.recordSelect(ctx, type_, m, p, expand, sels[1].active)
+    M.recordSelect(ctx, type_, anchor, active, expand, sels[1].active)
   else
-    st.lastSelection = { type = type_, expand = expand, anchor = m, active = p }
+    state.lastSelection = { type = type_, expand = expand, anchor = anchor, active = active }
   end
-  st.selType = type_
-  st.selExpand = expand
-  sels[1] = { anchor = m, active = p }
+  state.selType = type_
+  state.selExpand = expand
+  sels[1] = { anchor = anchor, active = active }
   port:setSelections(sels)
   require('neomeow.core.grab').beacon(ctx)
   ctx.ui:showExpandHints(hints.expandHintPositions(ctx))
 end
 
-function M.resetSelectionMemory(st)
-  st.selectionHistory = {}
-  st.lastSelection = nil
+function M.resetSelectionMemory(state)
+  state.selectionHistory = {}
+  state.lastSelection = nil
 end
 
 function M.collapse(ctx)
   local sels = ctx.port:getSelections()
   sels[1] = { anchor = sels[1].active, active = sels[1].active }
   ctx.port:setSelections(sels)
-  ctx.st.selType = SelType.NONE
-  ctx.st.selExpand = false
+  ctx.state.selType = SelType.NONE
+  ctx.state.selExpand = false
 end
 
 function M.cancel(ctx)
   M.collapse(ctx)
-  M.resetSelectionMemory(ctx.st)
+  M.resetSelectionMemory(ctx.state)
 end
 
 function M.cancelAll(ctx)
@@ -143,9 +143,9 @@ local function reverse(ctx)
 end
 
 local function pop(ctx)
-  local st = ctx.st
+  local state = ctx.state
   if M.hasSelection(M.primary(ctx)) then
-    local entry = table.remove(st.selectionHistory)
+    local entry = table.remove(state.selectionHistory)
     if entry == nil then
       return
     end
@@ -163,50 +163,50 @@ local function pop(ctx)
   end
 end
 
-local function expand(ctx, n)
-  local st = ctx.st
+local function expand(ctx, count)
+  local state = ctx.state
   local text = ctx.port:getText()
   local back = M.backwardP(ctx)
   local caret = M.primary(ctx).active
   local target
-  if st.selType == SelType.CHAR then
-    target = caret + (back and -n or n)
-  elseif st.selType == SelType.WORD or st.selType == SelType.SYMBOL then
-    local p = text_.charPred(st.selType == SelType.SYMBOL)
+  if state.selType == SelType.CHAR then
+    target = caret + (back and -count or count)
+  elseif state.selType == SelType.WORD or state.selType == SelType.SYMBOL then
+    local isWord = text_.charPred(state.selType == SelType.SYMBOL)
     if back then
-      target = text_.Words.prevStart(text, caret, n, p)
+      target = text_.Words.prevStart(text, caret, count, isWord)
     else
-      target = text_.Words.nextEnd(text, caret, n, p)
+      target = text_.Words.nextEnd(text, caret, count, isWord)
     end
-  elseif st.selType == SelType.LINE then
-    local ln = text_.lineOfOffset(text, caret)
+  elseif state.selType == SelType.LINE then
+    local caretLine = text_.lineOfOffset(text, caret)
     if back then
-      target = text_.lineStart(text, math.max(ln - n, 0))
+      target = text_.lineStart(text, math.max(caretLine - count, 0))
     else
-      target = text_.lineEnd(text, math.min(ln + n, text_.lineCount(text) - 1))
+      target = text_.lineEnd(text, math.min(caretLine + count, text_.lineCount(text) - 1))
     end
-  elseif st.selType == SelType.FIND or st.selType == SelType.TILL then
-    local ch = st.lastFind
-    if ch == nil then
+  elseif state.selType == SelType.FIND or state.selType == SelType.TILL then
+    local char = state.lastFind
+    if char == nil then
       return
     end
-    local t = text_.nthCharTarget(text, ch, caret, n, back, st.selType == SelType.TILL)
-    if t < 0 then
+    local found = text_.nthCharTarget(text, char, caret, count, back, state.selType == SelType.TILL)
+    if found < 0 then
       return
     end
-    target = t
+    target = found
   else
     return
   end
-  M.select(ctx, st.selType, M.mark(ctx), target, false)
+  M.select(ctx, state.selType, M.mark(ctx), target, false)
 end
 
-local function expandOrCount(ctx, n)
-  local st = ctx.st
-  if M.hasSelection(M.primary(ctx)) and EXPANDABLE[st.selType] then
-    expand(ctx, n == 0 and EXPAND_ZERO_COUNT or n)
+local function expandOrCount(ctx, digit)
+  local state = ctx.state
+  if M.hasSelection(M.primary(ctx)) and EXPANDABLE[state.selType] then
+    expand(ctx, digit == 0 and EXPAND_ZERO_COUNT or digit)
   else
-    st.pendingCount = st.pendingCount * 10 + n
+    state.pendingCount = state.pendingCount * 10 + digit
   end
 end
 
@@ -215,9 +215,9 @@ M.commands = {
   ['meow-cancel-selection'] = M.cancelAll,
   ['meow-pop-selection'] = pop,
 }
-for n = 0, 9 do
-  M.commands['meow-expand-' .. n] = function(ctx)
-    expandOrCount(ctx, n)
+for digit = 0, 9 do
+  M.commands['meow-expand-' .. digit] = function(ctx)
+    expandOrCount(ctx, digit)
   end
 end
 

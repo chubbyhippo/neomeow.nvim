@@ -54,44 +54,44 @@ end
 local function commentStart(line)
   local depth = 0
   for i = 1, #line do
-    local ch = line:sub(i, i)
-    if ch == '(' then
+    local char = line:sub(i, i)
+    if char == '(' then
       depth = depth + 1
-    elseif ch == ')' then
+    elseif char == ')' then
       if depth > 0 then
         depth = depth - 1
       end
-    elseif ch == '"' and depth == 0 and i > 1 and line:sub(i - 1, i - 1):match('%s') ~= nil then
+    elseif char == '"' and depth == 0 and i > 1 and line:sub(i - 1, i - 1):match('%s') ~= nil then
       return i - 1
     end
   end
   return nil
 end
 
-local function parseKeys(s, err)
+local function parseKeys(spec, err)
   local out = {}
   local i = 1
-  while i <= #s do
-    local ch = s:sub(i, i)
-    if ch == '<' then
-      local close = s:find('>', i, true)
+  while i <= #spec do
+    local char = spec:sub(i, i)
+    if char == '<' then
+      local close = spec:find('>', i, true)
       if close == nil then
-        table.insert(out, ch)
+        table.insert(out, char)
         i = i + 1
       else
-        local token = s:sub(i + 1, close - 1):lower()
+        local token = spec:sub(i + 1, close - 1):lower()
         if token == 'space' then
           table.insert(out, ' ')
         elseif token == 'lt' then
           table.insert(out, '<')
         else
-          err('unsupported key token ' .. s:sub(i, close) .. ' (only printable keys reach the meow engine)')
+          err('unsupported key token ' .. spec:sub(i, close) .. ' (only printable keys reach the meow engine)')
           return nil
         end
         i = close + 1
       end
     else
-      table.insert(out, ch)
+      table.insert(out, char)
       i = i + 1
     end
   end
@@ -136,7 +136,7 @@ local function parseHexColor(text)
   return '#' .. hex:lower()
 end
 
-local function parseSetColor(c, rest, err)
+local function parseSetColor(config, rest, err)
   local key, value = rest:match('^([^=]*)=?(.*)$')
   key = key:match('^%s*(.-)%s*$')
   local field = COLOR_SET_KEYS[key]
@@ -149,31 +149,31 @@ local function parseSetColor(c, rest, err)
     err('set ' .. key .. ": invalid color '" .. value .. "' (expected #RRGGBB)")
     return
   end
-  c[field] = color
+  config[field] = color
 end
 
-local function parseSet(c, rest, err)
+local function parseSet(config, rest, err)
   if rest == 'which-key' then
-    c.whichKey = true
+    config.whichKey = true
   elseif rest == 'nowhich-key' then
-    c.whichKey = false
+    config.whichKey = false
   elseif rest:sub(1, 10) == 'timeoutlen' then
     local eqPos = rest:find('=', 1, true)
-    local n
+    local delayMs
     if eqPos ~= nil then
-      n = tonumber(rest:sub(eqPos + 1):match('^%s*(%-?%d+)%s*$'))
+      delayMs = tonumber(rest:sub(eqPos + 1):match('^%s*(%-?%d+)%s*$'))
     else
-      n = tonumber((rest:match('^%S+%s+(%S+)') or ''):match('^%-?%d+$'))
+      delayMs = tonumber((rest:match('^%S+%s+(%S+)') or ''):match('^%-?%d+$'))
     end
-    if n ~= nil and n >= 0 then
-      c.whichKeyDelayMs = n
+    if delayMs ~= nil and delayMs >= 0 then
+      config.whichKeyDelayMs = delayMs
     end
   else
-    parseSetColor(c, rest, err)
+    parseSetColor(config, rest, err)
   end
 end
 
-local function parseDescBody(c, body, err)
+local function parseDescBody(config, body, err)
   if body:sub(1, 8) ~= '<leader>' then
     err('descriptions must start with <leader>: ' .. body)
     return
@@ -189,10 +189,10 @@ local function parseDescBody(c, body, err)
     err('empty key sequence in description: ' .. body)
     return
   end
-  orderedSet(c.keypadDesc, c.keypadDescOrder, seq, desc)
+  orderedSet(config.keypadDesc, config.keypadDescOrder, seq, desc)
 end
 
-local function parseChord(c, cmd, rest, err)
+local function parseChord(config, cmd, rest, err)
   local split = math.max((rest:find('%s[^%s]*$')) or 0, 0)
   if split <= 1 then
     err(cmd .. ' needs a chord and a target')
@@ -209,10 +209,10 @@ local function parseChord(c, cmd, rest, err)
   if binding == nil then
     return
   end
-  orderedSet(c.chords, c.chordOrder, Chord.spelling(chord), binding)
+  orderedSet(config.chords, config.chordOrder, Chord.spelling(chord), binding)
 end
 
-local function parseResizeKey(c, cmd, rest, err)
+local function parseResizeKey(config, cmd, rest, err)
   local lhs, rhs = rest:match('^(%S+)%s+(.*)$')
   if lhs == nil then
     err(cmd .. ' needs a key and a target')
@@ -230,10 +230,10 @@ local function parseResizeKey(c, cmd, rest, err)
   if binding == nil then
     return
   end
-  orderedSet(c.resizes, c.resizeOrder, key, binding)
+  orderedSet(config.resizes, config.resizeOrder, key, binding)
 end
 
-local function parseMap(c, cmd, rest, err)
+local function parseMap(config, cmd, rest, err)
   local lhs, rhs = rest:match('^(%S+)%s+(.*)$')
   if lhs == nil then
     err(cmd .. ' needs a key and a target')
@@ -262,7 +262,7 @@ local function parseMap(c, cmd, rest, err)
     elseif ('0123456789?/'):find(seq:sub(1, 1), 1, true) ~= nil then
       err('keypad ' .. seq:sub(1, 1) .. ' is reserved (digit argument / cheatsheet / describe)')
     else
-      orderedSet(c.keypad, c.keypadOrder, seq, binding)
+      orderedSet(config.keypad, config.keypadOrder, seq, binding)
     end
     return
   end
@@ -276,12 +276,12 @@ local function parseMap(c, cmd, rest, err)
   elseif keys == ' ' then
     err('SPC is the keypad key and cannot be remapped')
   else
-    local target = motion and c.motion or c.normal
+    local target = motion and config.motion or config.normal
     target[keys] = binding
   end
 end
 
-local function parseRepeat(c, rest, err)
+local function parseRepeat(config, rest, err)
   local group, keyToken, rhs = rest:match('^(%S+)%s+(%S+)%s+(.*)$')
   if group == nil then
     err('repeat needs a group, a member key and a target')
@@ -300,11 +300,11 @@ local function parseRepeat(c, rest, err)
     if binding == nil then
       return
     end
-    local members = c.repeatGroups[group]
+    local members = config.repeatGroups[group]
     if members == nil then
       members = { map = {}, order = {} }
-      table.insert(c.repeatOrder, group)
-      c.repeatGroups[group] = members
+      table.insert(config.repeatOrder, group)
+      config.repeatGroups[group] = members
     end
     orderedSet(members.map, members.order, key, binding)
   end
@@ -327,34 +327,34 @@ local COMMENT_PREFIXES = { ['"'] = true, ['#'] = true }
 
 local WHICH_KEY_DESC_PATTERN = '^let%s+g:WhichKeyDesc[%w_]*%s*=%s*"(.+)"$'
 
-local function parseCommand(c, cmd, rest, err)
+local function parseCommand(config, cmd, rest, err)
   if ACCEPTED_AND_IGNORED_COMMANDS[cmd] then
     return
   end
   if MAP_COMMANDS[cmd] then
-    parseMap(c, cmd, rest, err)
+    parseMap(config, cmd, rest, err)
   elseif cmd == 'cmap' or cmd == 'cnoremap' then
-    parseChord(c, cmd, rest, err)
+    parseChord(config, cmd, rest, err)
   elseif cmd == 'resizemap' or cmd == 'resizenoremap' then
-    parseResizeKey(c, cmd, rest, err)
+    parseResizeKey(config, cmd, rest, err)
   elseif cmd == 'set' then
-    parseSet(c, rest, err)
+    parseSet(config, rest, err)
   elseif cmd == 'desc' then
-    parseDescBody(c, rest, err)
+    parseDescBody(config, rest, err)
   elseif cmd == 'repeat' then
-    parseRepeat(c, rest, err)
+    parseRepeat(config, rest, err)
   else
     err("unknown command '" .. cmd .. "'")
   end
 end
 
-local function parseLine(c, line, err)
+local function parseLine(config, line, err)
   if line == '' or COMMENT_PREFIXES[line:sub(1, 1)] then
     return
   end
   local whichKeyDesc = line:match(WHICH_KEY_DESC_PATTERN)
   if whichKeyDesc ~= nil then
-    parseDescBody(c, whichKeyDesc, err)
+    parseDescBody(config, whichKeyDesc, err)
     return
   end
   local cut = commentStart(line)
@@ -365,18 +365,18 @@ local function parseLine(c, line, err)
     return
   end
   local cmd, rest = line:match('^(%S+)%s*(.*)$')
-  parseCommand(c, cmd, rest:match('^%s*(.-)%s*$'), err)
+  parseCommand(config, cmd, rest:match('^%s*(.-)%s*$'), err)
 end
 
 function M.parse(lines)
-  local c = M.newConfig()
+  local config = M.newConfig()
   for i, raw in ipairs(lines) do
     local function err(msg)
-      table.insert(c.errors, 'line ' .. i .. ': ' .. msg)
+      table.insert(config.errors, 'line ' .. i .. ': ' .. msg)
     end
-    parseLine(c, raw:match('^%s*(.-)%s*$'), err)
+    parseLine(config, raw:match('^%s*(.-)%s*$'), err)
   end
-  return c
+  return config
 end
 
 return M

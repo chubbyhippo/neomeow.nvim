@@ -34,9 +34,9 @@ end
 
 M.commands = {
   [M.RECENTER_COMMAND] = function(ctx)
-    ctx.st.recenterPhase = M.nextRecenterPhase(ctx.st.lastCommand, ctx.st.recenterPhase)
-    ctx.st.lastCommand = M.RECENTER_COMMAND
-    ctx.ui:revealCaret(M.recenterPosition(ctx.st.recenterPhase))
+    ctx.state.recenterPhase = M.nextRecenterPhase(ctx.state.lastCommand, ctx.state.recenterPhase)
+    ctx.state.lastCommand = M.RECENTER_COMMAND
+    ctx.ui:revealCaret(M.recenterPosition(ctx.state.recenterPhase))
   end,
 }
 

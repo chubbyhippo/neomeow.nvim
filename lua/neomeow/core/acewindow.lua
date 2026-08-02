@@ -47,8 +47,8 @@ end
 
 function M.ordered(candidates)
   local sorted = {}
-  for i, c in ipairs(candidates) do
-    sorted[i] = c
+  for i, candidate in ipairs(candidates) do
+    sorted[i] = candidate
   end
   table.sort(sorted, function(a, b)
     if a.x ~= b.x then
@@ -57,8 +57,8 @@ function M.ordered(candidates)
     return a.y < b.y
   end)
   local out = {}
-  for i, c in ipairs(sorted) do
-    out[i] = c.item
+  for i, candidate in ipairs(sorted) do
+    out[i] = candidate.item
   end
   return out
 end

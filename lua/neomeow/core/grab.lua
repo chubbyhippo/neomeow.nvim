@@ -24,12 +24,12 @@ local M = {}
 local MAX_GRAB_SYNC_MATCHES = 500
 
 local function clear(ctx)
-  ctx.st.grab = nil
+  ctx.state.grab = nil
   ctx.ui:setGrabHighlight(nil)
 end
 
 local function set(ctx, start, stop)
-  ctx.st.grab = { start = start, stop = stop }
+  ctx.state.grab = { start = start, stop = stop }
   if stop > start then
     ctx.ui:setGrabHighlight({ start = start, stop = stop })
   else
@@ -37,36 +37,36 @@ local function set(ctx, start, stop)
   end
 end
 
-function M.adjustForEdits(st, edits)
-  local g = st.grab
-  if g == nil then
+function M.adjustForEdits(state, edits)
+  local grabbed = state.grab
+  if grabbed == nil then
     return
   end
   local sorted = {}
-  for i, e in ipairs(edits) do
-    sorted[i] = e
+  for i, edit in ipairs(edits) do
+    sorted[i] = edit
   end
   table.sort(sorted, function(a, b)
     return a.start > b.start
   end)
-  for _, e in ipairs(sorted) do
-    local delta = #e.text - (e.stop - e.start)
-    if g.start >= e.stop then
-      g.start = g.start + delta
-      g.stop = g.stop + delta
+  for _, edit in ipairs(sorted) do
+    local delta = #edit.text - (edit.stop - edit.start)
+    if grabbed.start >= edit.stop then
+      grabbed.start = grabbed.start + delta
+      grabbed.stop = grabbed.stop + delta
     else
-      if g.stop >= e.stop then
-        g.stop = g.stop + delta
-      elseif g.stop > e.start then
-        g.stop = e.start
+      if grabbed.stop >= edit.stop then
+        grabbed.stop = grabbed.stop + delta
+      elseif grabbed.stop > edit.start then
+        grabbed.stop = edit.start
       end
-      if g.start > e.start then
-        g.start = e.start
+      if grabbed.start > edit.start then
+        grabbed.start = edit.start
       end
     end
   end
-  if g.stop < g.start then
-    g.stop = g.start
+  if grabbed.stop < grabbed.start then
+    grabbed.stop = grabbed.start
   end
 end
 
@@ -74,7 +74,7 @@ local function grab(ctx)
   clear(ctx)
   local sel = Sel.primary(ctx)
   if Sel.hasSelection(sel) then
-    set(ctx, Sel.lo(sel), Sel.hi(sel))
+    set(ctx, Sel.selStart(sel), Sel.selEnd(sel))
   end
   Sel.cancel(ctx)
 end
@@ -86,7 +86,7 @@ local function sync(ctx)
     return
   end
   clear(ctx)
-  set(ctx, Sel.lo(sel), Sel.hi(sel))
+  set(ctx, Sel.selStart(sel), Sel.selEnd(sel))
   Sel.cancel(ctx)
 end
 
@@ -95,10 +95,10 @@ local function swap(ctx)
     return
   end
   local port = ctx.port
-  local st = ctx.st
-  local g = st.grab
+  local state = ctx.state
+  local grabbed = state.grab
   local sel = Sel.primary(ctx)
-  if g == nil then
+  if grabbed == nil then
     ctx.ui:hint('No grab')
     return
   end
@@ -106,43 +106,44 @@ local function swap(ctx)
     ctx.ui:hint('meow-swap-grab needs a selection')
     return
   end
-  local gs = g.start
-  local ge = g.stop
-  local ss = Sel.lo(sel)
-  local se = Sel.hi(sel)
-  if math.max(gs, ss) < math.min(ge, se) and not (gs == ss and ge == se) then
+  local grabStart = grabbed.start
+  local grabEnd = grabbed.stop
+  local selStart = Sel.selStart(sel)
+  local selEnd = Sel.selEnd(sel)
+  local overlaps = math.max(grabStart, selStart) < math.min(grabEnd, selEnd)
+  if overlaps and not (grabStart == selStart and grabEnd == selEnd) then
     ctx.ui:hint('Selection overlaps the grab')
     return
   end
   local text = port:getText()
-  local grabText = text_.slice(text, gs, ge)
-  local selText = text_.slice(text, ss, se)
-  st.grab = nil
+  local grabText = text_.slice(text, grabStart, grabEnd)
+  local selText = text_.slice(text, selStart, selEnd)
+  state.grab = nil
   port:edit({
-    { start = ss, stop = se, text = grabText },
-    { start = gs, stop = ge, text = selText },
+    { start = selStart, stop = selEnd, text = grabText },
+    { start = grabStart, stop = grabEnd, text = selText },
   })
-  if gs <= ss then
-    local delta = #selText - (ge - gs)
-    set(ctx, gs, gs + #selText)
-    local caret = ss + delta + #grabText
+  if grabStart <= selStart then
+    local delta = #selText - (grabEnd - grabStart)
+    set(ctx, grabStart, grabStart + #selText)
+    local caret = selStart + delta + #grabText
     port:setSelections({ { anchor = caret, active = caret } })
   else
-    local delta = #grabText - (se - ss)
-    set(ctx, gs + delta, gs + delta + #selText)
-    local caret = ss + #grabText
+    local delta = #grabText - (selEnd - selStart)
+    set(ctx, grabStart + delta, grabStart + delta + #selText)
+    local caret = selStart + #grabText
     port:setSelections({ { anchor = caret, active = caret } })
   end
-  st.selType = SelType.NONE
+  state.selType = SelType.NONE
 end
 
 function M.pop(ctx)
-  local g = ctx.st.grab
-  if g == nil then
+  local grabbed = ctx.state.grab
+  if grabbed == nil then
     return false
   end
-  local start = g.start
-  local stop = g.stop
+  local start = grabbed.start
+  local stop = grabbed.stop
   clear(ctx)
   Sel.select(ctx, SelType.TRANSIENT, start, stop, false)
   return true
@@ -150,44 +151,44 @@ end
 
 function M.beacon(ctx)
   local port = ctx.port
-  local st = ctx.st
-  local g = st.grab
-  if g == nil or g.stop <= g.start then
+  local state = ctx.state
+  local grabbed = state.grab
+  if grabbed == nil or grabbed.stop <= grabbed.start then
     return
   end
   local sel = Sel.primary(ctx)
   if not Sel.hasSelection(sel) then
     return
   end
-  local ss = Sel.lo(sel)
-  local se = Sel.hi(sel)
-  if ss < g.start or se > g.stop or se == ss then
+  local selStart = Sel.selStart(sel)
+  local selEnd = Sel.selEnd(sel)
+  if selStart < grabbed.start or selEnd > grabbed.stop or selEnd == selStart then
     return
   end
   local text = port:getText()
   local sels = {}
   if
-    st.selType == SelType.WORD
-    or st.selType == SelType.SYMBOL
-    or st.selType == SelType.VISIT
-    or st.selType == SelType.FIND
-    or st.selType == SelType.TILL
-    or st.selType == SelType.CHAR
+    state.selType == SelType.WORD
+    or state.selType == SelType.SYMBOL
+    or state.selType == SelType.VISIT
+    or state.selType == SelType.FIND
+    or state.selType == SelType.TILL
+    or state.selType == SelType.CHAR
   then
-    local selText = text_.slice(text, ss, se)
+    local selText = text_.slice(text, selStart, selEnd)
     if selText:match('^%s*$') ~= nil then
       return
     end
-    local bounded = st.selType == SelType.WORD or st.selType == SelType.SYMBOL
+    local bounded = state.selType == SelType.WORD or state.selType == SelType.SYMBOL
     local quoted = text_.regexQuote(selText)
     local pattern = bounded and ('\\<' .. quoted .. '\\>') or quoted
-    local region = text_.slice(text, g.start, g.stop)
+    local region = text_.slice(text, grabbed.start, grabbed.stop)
     local added = 0
-    for _, m in ipairs(ctx.rx.allMatches(pattern, region)) do
-      local s0 = g.start + m.start
-      local e0 = g.start + m.stop
-      if s0 ~= ss then
-        table.insert(sels, { anchor = s0, active = e0 })
+    for _, match in ipairs(ctx.rx.allMatches(pattern, region)) do
+      local matchStart = grabbed.start + match.start
+      local matchEnd = grabbed.start + match.stop
+      if matchStart ~= selStart then
+        table.insert(sels, { anchor = matchStart, active = matchEnd })
         added = added + 1
         if added >= MAX_GRAB_SYNC_MATCHES then
           break
@@ -197,15 +198,15 @@ function M.beacon(ctx)
     if #sels == 0 then
       return
     end
-    table.insert(sels, 1, { anchor = ss, active = se })
-  elseif st.selType == SelType.LINE then
-    local first = text_.lineOfOffset(text, g.start)
-    local last = text_.lineOfOffset(text, math.max(g.stop - 1, g.start))
+    table.insert(sels, 1, { anchor = selStart, active = selEnd })
+  elseif state.selType == SelType.LINE then
+    local first = text_.lineOfOffset(text, grabbed.start)
+    local last = text_.lineOfOffset(text, math.max(grabbed.stop - 1, grabbed.start))
     if last <= first then
       return
     end
-    for ln = first, last do
-      table.insert(sels, { anchor = text_.lineStart(text, ln), active = text_.lineEnd(text, ln) })
+    for line = first, last do
+      table.insert(sels, { anchor = text_.lineStart(text, line), active = text_.lineEnd(text, line) })
     end
   else
     return

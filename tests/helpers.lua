@@ -6,9 +6,9 @@ local core = require('neomeow.core')
 local Engine = core.engine
 local registry = core.registry
 local Rc = core.rc
-local state = core.state
+local State = core.state
 local text_ = core.text
-local MeowMode = state.MeowMode
+local MeowMode = State.MeowMode
 local suite = require('tests.suite')
 
 local M = {}
@@ -73,27 +73,27 @@ local function makeRx()
       local out = {}
       local from = 0
       while from <= #text do
-        local ms, me = re:match_str(text:sub(from + 1))
-        if ms == nil then
+        local relativeStart, relativeEnd = re:match_str(text:sub(from + 1))
+        if relativeStart == nil then
           break
         end
-        local s0 = from + ms
-        local e0 = from + me
-        if e0 == s0 then
-          from = s0 + 1
+        local matchStart = from + relativeStart
+        local matchEnd = from + relativeEnd
+        if matchEnd == matchStart then
+          from = matchStart + 1
         else
-          table.insert(out, { start = s0, stop = e0 })
-          from = e0
+          table.insert(out, { start = matchStart, stop = matchEnd })
+          from = matchEnd
         end
       end
       return out
     end,
-    fullyMatches = function(pattern, s)
+    fullyMatches = function(pattern, text)
       local built, re = pcall(vim.regex, '\\%^\\%(' .. pattern .. '\\)\\%$')
       if not built then
         return false
       end
-      return re:match_str(s) ~= nil
+      return re:match_str(text) ~= nil
     end,
     isValid = function(pattern)
       return (pcall(vim.regex, pattern))
@@ -120,30 +120,30 @@ end
 
 function FakeEditor:getSelections()
   local out = {}
-  for i, s in ipairs(self.sels) do
-    out[i] = { anchor = s.anchor, active = s.active }
+  for i, sel in ipairs(self.sels) do
+    out[i] = { anchor = sel.anchor, active = sel.active }
   end
   return out
 end
 
 function FakeEditor:setSelections(sels)
   local out = {}
-  for i, s in ipairs(sels) do
-    out[i] = { anchor = s.anchor, active = s.active }
+  for i, sel in ipairs(sels) do
+    out[i] = { anchor = sel.anchor, active = sel.active }
   end
   self.sels = out
 end
 
 function FakeEditor:edit(edits)
   local sorted = {}
-  for i, e in ipairs(edits) do
-    sorted[i] = e
+  for i, edit in ipairs(edits) do
+    sorted[i] = edit
   end
   table.sort(sorted, function(a, b)
     return a.start > b.start
   end)
-  for _, e in ipairs(sorted) do
-    self.text = self.text:sub(1, e.start) .. e.text .. self.text:sub(e.stop + 1)
+  for _, edit in ipairs(sorted) do
+    self.text = self.text:sub(1, edit.start) .. edit.text .. self.text:sub(edit.stop + 1)
   end
 end
 
@@ -244,8 +244,8 @@ function FakeUi:revealCaret(at)
   table.insert(self.revealed, at)
 end
 
-function FakeUi:modeChanged(st)
-  table.insert(self.modes, st.mode)
+function FakeUi:modeChanged(state)
+  table.insert(self.modes, state.mode)
 end
 
 function FakeUi.refresh() end
@@ -264,15 +264,15 @@ local Spec = {}
 Spec.__index = Spec
 
 function Spec:ctx()
-  return { port = self.editor, clipboard = self.clip, ui = self.ui, rx = self.rx, st = self.st }
+  return { port = self.editor, clipboard = self.clip, ui = self.ui, rx = self.rx, state = self.state }
 end
 
 function Spec:given(_description, textWithCaret)
   local at = textWithCaret:find('<caret>', 1, true)
   self.editor.text = (textWithCaret:gsub('<caret>', '', 1))
-  local off = at == nil and 0 or (at - 1)
-  self.editor.sels = { { anchor = off, active = off } }
-  self.st = state.newState()
+  local offset = at == nil and 0 or (at - 1)
+  self.editor.sels = { { anchor = offset, active = offset } }
+  self.state = State.newState()
 end
 
 function Spec.givenRc(_, text)
@@ -284,8 +284,8 @@ function Spec:givenClipboard(text)
 end
 
 function Spec:givenMinibufferAnswers(...)
-  for _, a in ipairs({ ... }) do
-    table.insert(self.ui.answers, a)
+  for _, answer in ipairs({ ... }) do
+    table.insert(self.ui.answers, answer)
   end
 end
 
@@ -312,7 +312,7 @@ function Spec:whenCommand(name)
 end
 
 function Spec:fireAvyTimer()
-  local session = self.st.avy
+  local session = self.state.avy
   if session ~= nil and session.timer ~= nil then
     local cb = self.ui.timers[session.timer]
     if cb ~= nil then
@@ -326,11 +326,11 @@ function Spec:pressEsc()
 end
 
 function Spec:selectedText()
-  local s = self.editor.sels[1]
-  if s.anchor == s.active then
+  local sel = self.editor.sels[1]
+  if sel.anchor == sel.active then
     return nil
   end
-  return self.editor.text:sub(math.min(s.anchor, s.active) + 1, math.max(s.anchor, s.active))
+  return self.editor.text:sub(math.min(sel.anchor, sel.active) + 1, math.max(sel.anchor, sel.active))
 end
 
 function Spec:caretLine()
@@ -342,8 +342,8 @@ function Spec:thenSelection(expected)
 end
 
 function Spec:thenNoSelection()
-  local s = self.editor.sels[1]
-  eq(s.anchor, s.active, 'expected no selection')
+  local sel = self.editor.sels[1]
+  eq(sel.anchor, sel.active, 'expected no selection')
 end
 
 function Spec:thenCaretAt(offset)
@@ -351,15 +351,15 @@ function Spec:thenCaretAt(offset)
 end
 
 function Spec:thenCaretAtSelectionStart()
-  local s = self.editor.sels[1]
-  neq(s.anchor, s.active, 'expected a selection')
-  eq(s.active, math.min(s.anchor, s.active), 'caret at selection start (reversed)')
+  local sel = self.editor.sels[1]
+  neq(sel.anchor, sel.active, 'expected a selection')
+  eq(sel.active, math.min(sel.anchor, sel.active), 'caret at selection start (reversed)')
 end
 
 function Spec:thenCaretAtSelectionEnd()
-  local s = self.editor.sels[1]
-  neq(s.anchor, s.active, 'expected a selection')
-  eq(s.active, math.max(s.anchor, s.active), 'caret at selection end (forward)')
+  local sel = self.editor.sels[1]
+  neq(sel.anchor, sel.active, 'expected a selection')
+  eq(sel.active, math.max(sel.anchor, sel.active), 'caret at selection end (forward)')
 end
 
 function Spec:thenText(expected)
@@ -367,11 +367,11 @@ function Spec:thenText(expected)
 end
 
 function Spec:thenMode(expected)
-  eq(self.st.mode, expected, 'meow mode')
+  eq(self.state.mode, expected, 'meow mode')
 end
 
 function Spec:thenSelType(expected)
-  eq(self.st.selType, expected, 'selection type')
+  eq(self.state.selType, expected, 'selection type')
 end
 
 function Spec:thenClipboard(expected)
@@ -391,18 +391,17 @@ function M.freshSpec()
   end
   Rc.setForTest(Rc.newConfig())
   Engine.clearRepeat()
-  local s = setmetatable({
+  return setmetatable({
     editor = newFakeEditor(),
     clip = setmetatable({ content = nil }, FakeClipboard),
     ui = newFakeUi(),
     rx = makeRx(),
-    st = state.newState(),
+    state = State.newState(),
   }, Spec)
-  return s
 end
 
 M.MeowMode = MeowMode
-M.SelType = state.SelType
-M.Pending = state.Pending
+M.SelType = State.SelType
+M.Pending = State.Pending
 
 return M

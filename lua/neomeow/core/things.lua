@@ -24,10 +24,10 @@ local function pair(text, offset, open, close, inner)
   local start = -1
   local i = offset - 1
   while i >= 0 do
-    local c = text_.charAt(text, i)
-    if c == close then
+    local char = text_.charAt(text, i)
+    if char == close then
       depth = depth + 1
-    elseif c == open then
+    elseif char == open then
       if depth == 0 then
         start = i
         break
@@ -43,10 +43,10 @@ local function pair(text, offset, open, close, inner)
   local stop = -1
   local j = offset
   while j < #text do
-    local c = text_.charAt(text, j)
-    if c == open and j ~= start then
+    local char = text_.charAt(text, j)
+    if char == open and j ~= start then
       depth = depth + 1
-    elseif c == close then
+    elseif char == close then
       if depth == 0 then
         stop = j
         break
@@ -65,29 +65,29 @@ local function pair(text, offset, open, close, inner)
 end
 
 local function stringThing(text, offset, inner)
-  local n = #text
+  local textLength = #text
   local i = 0
-  while i < n do
-    local c = text_.charAt(text, i)
-    if c == '"' or c == "'" or c == '`' then
-      local triple = i + 2 < n and text_.charAt(text, i + 1) == c and text_.charAt(text, i + 2) == c
+  while i < textLength do
+    local quote = text_.charAt(text, i)
+    if quote == '"' or quote == "'" or quote == '`' then
+      local triple = i + 2 < textLength and text_.charAt(text, i + 1) == quote and text_.charAt(text, i + 2) == quote
       local len = triple and 3 or 1
       local open = i
       local j = i + len
       local closeEnd = -1
-      while j < n do
-        local d = text_.charAt(text, j)
-        if not triple and d == '\n' then
+      while j < textLength do
+        local char = text_.charAt(text, j)
+        if not triple and char == '\n' then
           break
         end
-        if d == '\\' then
+        if char == '\\' then
           j = j + 2
         else
           local closes = true
           if triple then
-            closes = j + 2 < n and text_.charAt(text, j + 1) == c and text_.charAt(text, j + 2) == c
+            closes = j + 2 < textLength and text_.charAt(text, j + 1) == quote and text_.charAt(text, j + 2) == quote
           end
-          if d == c and closes then
+          if char == quote and closes then
             closeEnd = j + len
             break
           end
@@ -113,23 +113,23 @@ local function stringThing(text, offset, inner)
 end
 
 local function symbol(text, offset)
-  local o = offset
-  if o >= #text or not text_.isSymbolChar(text_.charAt(text, o)) then
-    if o > 0 and text_.isSymbolChar(text_.charAt(text, o - 1)) then
-      o = o - 1
+  local inSymbol = offset
+  if inSymbol >= #text or not text_.isSymbolChar(text_.charAt(text, inSymbol)) then
+    if inSymbol > 0 and text_.isSymbolChar(text_.charAt(text, inSymbol - 1)) then
+      inSymbol = inSymbol - 1
     else
       return nil
     end
   end
-  local s = o
-  local e = o
-  while s > 0 and text_.isSymbolChar(text_.charAt(text, s - 1)) do
-    s = s - 1
+  local startOffset = inSymbol
+  local endOffset = inSymbol
+  while startOffset > 0 and text_.isSymbolChar(text_.charAt(text, startOffset - 1)) do
+    startOffset = startOffset - 1
   end
-  while e < #text and text_.isSymbolChar(text_.charAt(text, e)) do
-    e = e + 1
+  while endOffset < #text and text_.isSymbolChar(text_.charAt(text, endOffset)) do
+    endOffset = endOffset + 1
   end
-  return { start = s, stop = e }
+  return { start = startOffset, stop = endOffset }
 end
 
 local function window(ctx, text)
@@ -146,15 +146,15 @@ local function paragraph(text, offset, inner)
     return nil
   end
   local count = text_.lineCount(text)
-  local function blank(l)
-    return text_.isBlankLine(text, l)
+  local function blank(lineIndex)
+    return text_.isBlankLine(text, lineIndex)
   end
-  local ln = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
-  if blank(ln) then
+  local caretLine = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
+  if blank(caretLine) then
     return nil
   end
-  local first = ln
-  local last = ln
+  local first = caretLine
+  local last = caretLine
   while first > 0 and not blank(first - 1) do
     first = first - 1
   end
@@ -169,22 +169,22 @@ local function paragraph(text, offset, inner)
   while stop < count - 1 and blank(stop + 1) do
     stop = stop + 1
   end
-  local e
+  local endOffset
   if stop < count - 1 then
-    e = text_.lineStart(text, stop + 1)
+    endOffset = text_.lineStart(text, stop + 1)
   else
-    e = text_.lineEnd(text, stop)
+    endOffset = text_.lineEnd(text, stop)
   end
-  return { start = start, stop = e }
+  return { start = start, stop = endOffset }
 end
 
 local function line(text, offset, inner)
-  local ln = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
-  local stop = text_.lineEnd(text, ln)
+  local caretLine = text_.lineOfOffset(text, text_.clamp(offset, 0, #text))
+  local stop = text_.lineEnd(text, caretLine)
   if inner then
-    return { start = text_.lineStart(text, ln), stop = stop }
+    return { start = text_.lineStart(text, caretLine), stop = stop }
   end
-  return { start = text_.lineStart(text, ln), stop = text_.lineStart(text, ln + 1) }
+  return { start = text_.lineStart(text, caretLine), stop = text_.lineStart(text, caretLine + 1) }
 end
 
 local function visualLine(text, offset)
@@ -196,99 +196,104 @@ local function defun(ctx, text, offset)
   if fromHost ~= nil then
     return fromHost
   end
-  local b = pair(text, offset, '{', '}', false)
-  if b == nil then
+  local braces = pair(text, offset, '{', '}', false)
+  if braces == nil then
     return nil
   end
   while true do
-    local outer = pair(text, b.start, '{', '}', false)
+    local outer = pair(text, braces.start, '{', '}', false)
     if outer == nil then
       break
     end
-    b = outer
+    braces = outer
   end
-  return b
+  return braces
 end
 
-local function isEnder(c)
-  return c ~= '' and text_.SENTENCE_ENDERS:find(c, 1, true) ~= nil
+local function isEnder(char)
+  return char ~= '' and text_.SENTENCE_ENDERS:find(char, 1, true) ~= nil
 end
 
 local function sentence(text, offset, inner)
   if #text == 0 then
     return nil
   end
-  local s = text_.clamp(offset, 0, #text - 1)
-  while s > 0 do
-    local c = text_.charAt(text, s - 1)
-    if isEnder(c) or (c == '\n' and s > 1 and text_.charAt(text, s - 2) == '\n') then
+  local startOffset = text_.clamp(offset, 0, #text - 1)
+  while startOffset > 0 do
+    local char = text_.charAt(text, startOffset - 1)
+    local blankLineBreak = char == '\n' and startOffset > 1 and text_.charAt(text, startOffset - 2) == '\n'
+    if isEnder(char) or blankLineBreak then
       break
     end
-    s = s - 1
+    startOffset = startOffset - 1
   end
-  while s < #text and text_.charAt(text, s):match('^%s$') ~= nil do
-    s = s + 1
+  while startOffset < #text and text_.charAt(text, startOffset):match('^%s$') ~= nil do
+    startOffset = startOffset + 1
   end
-  local e = text_.clamp(offset, 0, #text)
+  local endOffset = text_.clamp(offset, 0, #text)
   while
-    e < #text
-    and not isEnder(text_.charAt(text, e))
-    and not (text_.charAt(text, e) == '\n' and e + 1 < #text and text_.charAt(text, e + 1) == '\n')
+    endOffset < #text
+    and not isEnder(text_.charAt(text, endOffset))
+    and not (
+      text_.charAt(text, endOffset) == '\n'
+      and endOffset + 1 < #text
+      and text_.charAt(text, endOffset + 1) == '\n'
+    )
   do
-    e = e + 1
+    endOffset = endOffset + 1
   end
-  if e < #text and isEnder(text_.charAt(text, e)) then
-    e = e + 1
+  if endOffset < #text and isEnder(text_.charAt(text, endOffset)) then
+    endOffset = endOffset + 1
   end
-  if e <= s then
+  if endOffset <= startOffset then
     return nil
   end
   if inner then
-    return { start = s, stop = e }
+    return { start = startOffset, stop = endOffset }
   end
-  local be = e
-  while be < #text and text_.charAt(text, be) == ' ' do
-    be = be + 1
+  local withTrailingSpace = endOffset
+  while withTrailingSpace < #text and text_.charAt(text, withTrailingSpace) == ' ' do
+    withTrailingSpace = withTrailingSpace + 1
   end
-  return { start = s, stop = be }
+  return { start = startOffset, stop = withTrailingSpace }
 end
 
-local function compute(ctx, ch, offset, inner)
+local function compute(ctx, char, offset, inner)
   local text = ctx.port:getText()
-  if ch == 'r' then
+  if char == 'r' then
     return pair(text, offset, '(', ')', inner)
-  elseif ch == 's' then
+  elseif char == 's' then
     return pair(text, offset, '[', ']', inner)
-  elseif ch == 'c' then
+  elseif char == 'c' then
     return pair(text, offset, '{', '}', inner)
-  elseif ch == 'g' then
+  elseif char == 'g' then
     return stringThing(text, offset, inner)
-  elseif ch == 'e' then
+  elseif char == 'e' then
     return symbol(text, offset)
-  elseif ch == 'w' then
+  elseif char == 'w' then
     return window(ctx, text)
-  elseif ch == 'b' then
+  elseif char == 'b' then
     return { start = 0, stop = #text }
-  elseif ch == 'p' then
+  elseif char == 'p' then
     return paragraph(text, offset, inner)
-  elseif ch == 'l' then
+  elseif char == 'l' then
     return line(text, offset, inner)
-  elseif ch == 'v' then
+  elseif char == 'v' then
     return visualLine(text, offset)
-  elseif ch == 'd' then
+  elseif char == 'd' then
     return defun(ctx, text, offset)
-  elseif ch == '.' then
+  elseif char == '.' then
     return sentence(text, offset, inner)
   end
   return nil
 end
 
 M.Things = {
-  inner = function(ctx, ch, offset)
-    return compute(ctx, ch, offset, true)
+  inner = function(ctx, char, offset)
+    return compute(ctx, char, offset, true)
   end,
-  bounds = function(ctx, ch, offset)
-    return compute(ctx, ch, offset, false)
+  bounds = function(ctx, char, offset)
+    return compute(ctx, char, offset, false)
   end,
 }
 

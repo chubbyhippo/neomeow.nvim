@@ -7,7 +7,7 @@ local describe, it = h.describe, h.it
 local Engine = require('neomeow.core.engine')
 local Rc = require('neomeow.core.rc')
 local RcState = require('neomeow.core.rcstate')
-local state = require('neomeow.core.state')
+local State = require('neomeow.core.state')
 local MeowMode = h.MeowMode
 local Pending = h.Pending
 
@@ -35,29 +35,29 @@ describe('RepeatSpec', function()
   }, '\n')
 
   it('given repeat lines then named groups parse with their member targets', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'repeat nav . meow-next',
       'repeat nav , meow-prev',
       'repeat zoom i <action>(editor.action.fontZoomIn)',
     })
-    h.eq(c.repeatGroups['nav'].map['.'].command, 'meow-next')
-    h.eq(c.repeatGroups['nav'].map[','].command, 'meow-prev')
-    h.eq(c.repeatGroups['zoom'].map['i'].action, 'editor.action.fontZoomIn')
-    h.eqList(c.errors, {})
+    h.eq(config.repeatGroups['nav'].map['.'].command, 'meow-next')
+    h.eq(config.repeatGroups['nav'].map[','].command, 'meow-prev')
+    h.eq(config.repeatGroups['zoom'].map['i'].action, 'editor.action.fontZoomIn')
+    h.eqList(config.errors, {})
   end)
 
   it('given a repeat line with a bad target then an error is collected', function()
-    local c = Rc.parse({ 'repeat nav . meow-frobnicate', 'repeat nav' })
-    h.eq(#c.errors, 2)
-    h.ok(c.errors[1]:find('meow-frobnicate', 1, true))
+    local config = Rc.parse({ 'repeat nav . meow-frobnicate', 'repeat nav' })
+    h.eq(#config.errors, 2)
+    h.ok(config.errors[1]:find('meow-frobnicate', 1, true))
   end)
 
   it('given a repeat key that is not a single printable key then an error is collected', function()
-    local c = Rc.parse({
+    local config = Rc.parse({
       'repeat nav ab meow-next',
       'repeat nav <Space> meow-next',
     })
-    h.eq(#c.errors, 2)
+    h.eq(#config.errors, 2)
   end)
 
   it('given home rc repeat lines then they layer per key over the bundled group', function()
@@ -136,7 +136,7 @@ describe('RepeatSpec', function()
     s:givenRc(navRc)
     s:whenKeys(' tn')
     h.eq(s:caretLine(), 1)
-    s.st = state.newState()
+    s.state = State.newState()
     s:whenKeys('.')
     h.eq(s:caretLine(), 2)
   end)
@@ -160,7 +160,7 @@ describe('RepeatSpec', function()
     s:whenKeys('x')
     s:thenSelection('two')
     s:whenKeys('.')
-    h.eq(s.st.pending, Pending.BOUNDS)
+    h.eq(s.state.pending, Pending.BOUNDS)
     h.eq(s:caretLine(), 1)
   end)
 
@@ -173,7 +173,7 @@ describe('RepeatSpec', function()
     s:pressEsc()
     h.eq(Engine.repeatMap, nil)
     s:whenKeys('.')
-    h.eq(s.st.pending, Pending.BOUNDS)
+    h.eq(s.state.pending, Pending.BOUNDS)
     h.eq(s:caretLine(), 1)
   end)
 

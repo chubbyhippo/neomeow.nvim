@@ -50,8 +50,8 @@ function M.setUserLines(lines)
   return userConfig
 end
 
-function M.setForTest(c)
-  userConfig = c
+function M.setForTest(config)
+  userConfig = config
   rcState.resetForTest()
 end
 
@@ -66,17 +66,17 @@ end
 local function mergedOrdered(defMap, defOrder, userMap, userOrder)
   local map = {}
   local order = {}
-  for _, k in ipairs(defOrder) do
-    if map[k] == nil then
-      table.insert(order, k)
+  for _, key in ipairs(defOrder) do
+    if map[key] == nil then
+      table.insert(order, key)
     end
-    map[k] = defMap[k]
+    map[key] = defMap[key]
   end
-  for _, k in ipairs(userOrder) do
-    if map[k] == nil then
-      table.insert(order, k)
+  for _, key in ipairs(userOrder) do
+    if map[key] == nil then
+      table.insert(order, key)
     end
-    map[k] = userMap[k]
+    map[key] = userMap[key]
   end
   return map, order
 end
@@ -126,9 +126,9 @@ function M.repeatGroups()
   for _, group in ipairs(defaultConfig.repeatOrder) do
     local src = defaultConfig.repeatGroups[group]
     local members = { map = {}, order = {} }
-    for _, k in ipairs(src.order) do
-      members.map[k] = src.map[k]
-      table.insert(members.order, k)
+    for _, key in ipairs(src.order) do
+      members.map[key] = src.map[key]
+      table.insert(members.order, key)
     end
     merged[group] = members
     table.insert(order, group)
@@ -141,23 +141,23 @@ function M.repeatGroups()
       merged[group] = members
       table.insert(order, group)
     end
-    for _, k in ipairs(src.order) do
-      if members.map[k] == nil then
-        table.insert(members.order, k)
+    for _, key in ipairs(src.order) do
+      if members.map[key] == nil then
+        table.insert(members.order, key)
       end
-      members.map[k] = src.map[k]
+      members.map[key] = src.map[key]
     end
   end
   local prunedOrder = {}
   for _, group in ipairs(order) do
     local members = merged[group]
     local keptOrder = {}
-    for _, k in ipairs(members.order) do
-      local b = members.map[k]
-      if b.command == 'ignore' then
-        members.map[k] = nil
+    for _, key in ipairs(members.order) do
+      local binding = members.map[key]
+      if binding.command == 'ignore' then
+        members.map[key] = nil
       else
-        table.insert(keptOrder, k)
+        table.insert(keptOrder, key)
       end
     end
     members.order = keptOrder
@@ -178,8 +178,8 @@ function M.repeatMapFor(binding)
   local groups, order = M.repeatGroups()
   for _, group in ipairs(order) do
     local members = groups[group]
-    for _, k in ipairs(members.order) do
-      if sameBinding(members.map[k], binding) then
+    for _, key in ipairs(members.order) do
+      if sameBinding(members.map[key], binding) then
         return members
       end
     end
