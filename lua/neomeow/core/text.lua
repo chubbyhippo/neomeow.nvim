@@ -413,4 +413,12 @@ function M.isBlank(char)
   return char == ' ' or char == '\t'
 end
 
+function M.firstNonBlankOffset(text, from, stop)
+  local at = from
+  while at < stop and M.isBlank(M.charAt(text, at)) do
+    at = at + 1
+  end
+  return at
+end
+
 return M

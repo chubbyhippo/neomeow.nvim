@@ -126,18 +126,10 @@ local function toBlock(ctx)
   Sel.select(ctx, SelType.BLOCK, caret, back and braces.open or (braces.close + 1), true)
 end
 
-local function firstNonBlankOffset(text, line)
-  local offset = text_.lineStart(text, line)
-  local eol = text_.lineEnd(text, line)
-  while offset < eol and text_.charAt(text, offset):match('^%s$') ~= nil do
-    offset = offset + 1
-  end
-  return offset
-end
-
 local function selectJoin(ctx, text, markLine, pointLine)
   local mark = text_.lineEnd(text, markLine)
-  Sel.select(ctx, SelType.JOIN, mark, firstNonBlankOffset(text, pointLine), true)
+  local point = text_.firstNonBlankOffset(text, text_.lineStart(text, pointLine), text_.lineEnd(text, pointLine))
+  Sel.select(ctx, SelType.JOIN, mark, point, true)
 end
 
 local function join(ctx)

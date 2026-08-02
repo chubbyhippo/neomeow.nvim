@@ -34,12 +34,7 @@ end
 
 local function indentationTarget(text, offset)
   local line = text_.lineOfOffset(text, offset)
-  local stop = text_.lineEnd(text, line)
-  local at = text_.lineStart(text, line)
-  while at < stop and text_.isBlank(text:sub(at + 1, at + 1)) do
-    at = at + 1
-  end
-  return at
+  return text_.firstNonBlankOffset(text, text_.lineStart(text, line), text_.lineEnd(text, line))
 end
 
 local function wordType(symbol)
